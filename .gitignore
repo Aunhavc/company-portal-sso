@@ -20,3 +20,6 @@ Thumbs.db
 
 # typescript incremental build cache
 *.tsbuildinfo
+
+# ไฟล์ล็อกชั่วคราวของ Microsoft Word
+~$*
