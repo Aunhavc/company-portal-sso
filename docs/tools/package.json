@@ -4,6 +4,12 @@
   "version": "1.0.0",
   "type": "module",
   "description": "สร้างคู่มือ .docx สำหรับ Company Portal",
-  "scripts": { "build": "node build-manual.mjs" },
-  "dependencies": { "docx": "^9.5.1" }
+  "scripts": {
+    "build": "node build-manual.mjs",
+    "build:user": "node build-user-guide.mjs",
+    "build:all": "node build-manual.mjs && node build-user-guide.mjs"
+  },
+  "dependencies": {
+    "docx": "^9.5.1"
+  }
 }
