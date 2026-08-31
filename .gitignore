@@ -1,0 +1,22 @@
+# dependencies
+node_modules/
+vendor/
+
+# build output
+dist/
+build/
+
+# ความลับ — ห้าม commit เด็ดขาด
+.env
+.env.local
+.env.*.local
+config.php
+
+# tooling
+.vercel/
+.DS_Store
+Thumbs.db
+*.log
+
+# typescript incremental build cache
+*.tsbuildinfo
