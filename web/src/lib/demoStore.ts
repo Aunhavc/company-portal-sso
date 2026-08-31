@@ -42,53 +42,64 @@ export const demoProfile: Profile = {
   updated_at: now(),
 }
 
+/**
+ * แอปตั้งต้น
+ *
+ * เปิดใช้งานเฉพาะแอปที่มี URL จริงและตรวจแล้วว่าเข้าถึงได้เท่านั้น
+ * ส่วนที่เหลือเป็นร่างรอกำหนด URL — ปิดไว้ก่อนเพื่อไม่ให้พนักงานคลิกแล้วเจอหน้าเปล่า
+ * เปิดใช้งานได้ที่หน้า "จัดการแอป" เมื่อกรอก URL จริงแล้ว
+ */
+const DRAFT_NOTE = ' — ยังไม่ได้กำหนด URL จริง แก้ที่หน้าจัดการแอปแล้วเปิดใช้งาน'
+
 const seedApps: AppEntry[] = [
   {
-    id: 1, slug: 'cloud-ops', name: 'Cloud Operations Portal',
-    description: 'ระบบปฏิบัติการงานส่วนหน้าบนคลาวด์ เข้าได้จากทุกที่ทุกเวลา',
+    id: 1, slug: 'neopos-web', name: 'NeoPOS — หน้าจอขาย',
+    description: 'ระบบขายหน้าร้านบนคลาวด์ ใช้งานได้จากทุกสาขาและทุกอุปกรณ์',
     category: 'ระบบงานหลัก', network: 'internet',
-    url: 'https://ops.example.com', sso_url: null, health_url: null,
-    icon: '☁️', accent: 'blue', open_in_new_tab: true,
+    url: 'https://neopos-web.vercel.app', sso_url: null, health_url: null,
+    icon: '🛒', accent: 'blue', open_in_new_tab: true,
     allowed_roles: ['user', 'admin'], sort_order: 10, is_active: true,
     created_at: now(), updated_at: now(),
   },
   {
-    id: 2, slug: 'erp', name: 'ERP System',
-    description: 'ระบบ ERP ภายในองค์กร ต้องเชื่อมต่อ VPN ก่อนเข้าใช้งาน',
+    id: 2, slug: 'sap-b1', name: 'SAP Business One',
+    description: 'ระบบ ERP หลักขององค์กร ต้องเชื่อมต่อ VPN ก่อนใช้งาน' + DRAFT_NOTE,
     category: 'ระบบงานหลัก', network: 'intranet',
-    url: 'https://erp.example.local/dashboard.php',
-    sso_url: 'https://erp.example.local/auth-callback.php',
-    health_url: 'https://erp.example.local/ping.php',
+    url: 'https://sap.company.local/', sso_url: null,
+    health_url: 'https://sap.company.local/ping.php',
     icon: '🏭', accent: 'emerald', open_in_new_tab: false,
-    allowed_roles: ['user', 'admin'], sort_order: 20, is_active: true,
+    allowed_roles: ['user', 'admin'], sort_order: 20, is_active: false,
     created_at: now(), updated_at: now(),
   },
   {
-    id: 3, slug: 'hr', name: 'HR Self Service',
-    description: 'ลางาน ขอเอกสาร ตรวจสอบสวัสดิการและสลิปเงินเดือน',
-    category: 'บุคคล', network: 'internet',
-    url: 'https://hr.example.com', sso_url: null, health_url: null,
-    icon: '🧑‍💼', accent: 'violet', open_in_new_tab: true,
-    allowed_roles: ['user', 'admin'], sort_order: 30, is_active: true,
-    created_at: now(), updated_at: now(),
-  },
-  {
-    id: 4, slug: 'wms', name: 'คลังสินค้า (WMS)',
-    description: 'ระบบบริหารคลังสินค้าและการรับ-จ่ายสต๊อก',
+    id: 3, slug: 'wms', name: 'WMS — คลังสินค้า',
+    description: 'รับ-จ่ายสต๊อก ตรวจนับ และจัดการตำแหน่งเก็บ' + DRAFT_NOTE,
     category: 'ระบบงานหลัก', network: 'intranet',
-    url: 'https://wms.example.local/', sso_url: null,
-    health_url: 'https://wms.example.local/ping.php',
+    url: 'https://wms.company.local/',
+    sso_url: 'https://wms.company.local/auth-callback.php',
+    health_url: 'https://wms.company.local/ping.php',
     icon: '📦', accent: 'amber', open_in_new_tab: false,
-    allowed_roles: ['user', 'admin'], sort_order: 40, is_active: true,
+    allowed_roles: ['user', 'admin'], sort_order: 30, is_active: false,
     created_at: now(), updated_at: now(),
   },
   {
-    id: 5, slug: 'admin-console', name: 'Admin Console',
-    description: 'จัดการผู้ใช้และสิทธิ์การเข้าถึงระบบ (เฉพาะผู้ดูแลระบบ)',
-    category: 'ผู้ดูแลระบบ', network: 'internet',
-    url: 'https://admin.example.com', sso_url: null, health_url: null,
-    icon: '🛡️', accent: 'rose', open_in_new_tab: true,
-    allowed_roles: ['admin'], sort_order: 90, is_active: true,
+    id: 4, slug: 'doctracking', name: 'DocTracking — ติดตามเอกสาร',
+    description: 'ติดตามสถานะเอกสารและการอนุมัติภายในองค์กร' + DRAFT_NOTE,
+    category: 'งานเอกสาร', network: 'intranet',
+    url: 'https://doc.company.local/', sso_url: null,
+    health_url: 'https://doc.company.local/ping.php',
+    icon: '🧾', accent: 'cyan', open_in_new_tab: false,
+    allowed_roles: ['user', 'admin'], sort_order: 40, is_active: false,
+    created_at: now(), updated_at: now(),
+  },
+  {
+    id: 5, slug: 'salestarget', name: 'SalesTarget — เป้าการขาย',
+    description: 'กำหนดและติดตามเป้า Sales/GP รายกลุ่ม สาขา และเดือน' + DRAFT_NOTE,
+    category: 'ขายและการตลาด', network: 'intranet',
+    url: 'https://salestarget.company.local/', sso_url: null,
+    health_url: 'https://salestarget.company.local/ping.php',
+    icon: '📊', accent: 'violet', open_in_new_tab: false,
+    allowed_roles: ['admin'], sort_order: 50, is_active: false,
     created_at: now(), updated_at: now(),
   },
 ]

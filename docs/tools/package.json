@@ -1,0 +1,9 @@
+{
+  "name": "portal-manual-builder",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "สร้างคู่มือ .docx สำหรับ Company Portal",
+  "scripts": { "build": "node build-manual.mjs" },
+  "dependencies": { "docx": "^9.5.1" }
+}
