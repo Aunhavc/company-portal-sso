@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AppFormModal } from '../components/AppFormModal'
 import { DemoBanner } from '../components/DemoBanner'
+import { OrgSettingsCard } from '../components/OrgSettingsCard'
 import { useAllApps } from '../hooks/usePortalData'
 import { api } from '../lib/api'
 import { ACCENTS, cx } from '../lib/ui'
@@ -102,6 +103,8 @@ export function AdminApps() {
           เพิ่มแอปใหม่
         </button>
       </div>
+
+      <OrgSettingsCard />
 
       {notice ? (
         <div

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { SessionProvider } from './lib/session'
+import { SettingsProvider } from './lib/settings'
 import './index.css'
 
 const container = document.getElementById('root')
@@ -11,9 +12,11 @@ if (!container) throw new Error('ไม่พบ element #root')
 createRoot(container).render(
   <StrictMode>
     <BrowserRouter>
-      <SessionProvider>
-        <App />
-      </SessionProvider>
+      <SettingsProvider>
+        <SessionProvider>
+          <App />
+        </SessionProvider>
+      </SettingsProvider>
     </BrowserRouter>
   </StrictMode>,
 )

@@ -5,7 +5,7 @@
 import { isLive } from './env'
 import { requireSupabase } from './supabase'
 import { demoProfile, demoStore } from './demoStore'
-import type { Announcement, AppEntry, AppInput, Profile } from './types'
+import type { Announcement, AppEntry, AppInput, Profile, Settings } from './types'
 
 /** เลือกทุกคอลัมน์ — โครงสร้างตาราง apps ตรงกับ AppEntry แบบหนึ่งต่อหนึ่ง */
 const APP_COLUMNS = '*'
@@ -92,5 +92,28 @@ export const api = {
       .limit(20)
     if (error) fail('โหลดประกาศไม่สำเร็จ', error)
     return (data ?? []) as unknown as Announcement[]
+  },
+
+  /** ค่าตั้งค่าองค์กร — อ่านได้โดยไม่ต้องล็อกอิน (หน้าล็อกอินใช้แสดงชื่อบริษัท) */
+  async getSettings(): Promise<Settings> {
+    if (!isLive) return demoStore.getSettings()
+    const { data, error } = await requireSupabase().from('settings').select('key,value')
+    if (error) fail('โหลดค่าตั้งค่าไม่สำเร็จ', error)
+    const map = Object.fromEntries((data ?? []).map((r: any) => [r.key, r.value]))
+    return {
+      company_name: map.company_name ?? '',
+      logo_url: map.logo_url ?? '',
+      portal_tagline: map.portal_tagline ?? '',
+      helpdesk_phone: map.helpdesk_phone ?? '',
+      helpdesk_email: map.helpdesk_email ?? '',
+    }
+  },
+
+  async saveSettings(next: Settings): Promise<Settings> {
+    if (!isLive) return demoStore.saveSettings(next)
+    const rows = Object.entries(next).map(([key, value]) => ({ key, value: String(value ?? '') }))
+    const { error } = await requireSupabase().from('settings').upsert(rows, { onConflict: 'key' })
+    if (error) fail('บันทึกค่าตั้งค่าไม่สำเร็จ', error)
+    return next
   },
 }

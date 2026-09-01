@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useSession } from '../lib/session'
-import { env } from '../lib/env'
+import { BrandMark, useSettings } from '../lib/settings'
 import { initials } from '../lib/ui'
 
 export function Header() {
   const { profile, isAdmin, logout, mode } = useSession()
+  const { settings } = useSettings()
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const location = useLocation()
@@ -27,11 +28,9 @@ export function Header() {
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/85 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
         <Link to="/" className="flex items-center gap-3">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-blue-600 text-sm font-bold text-white">
-            CP
-          </span>
+          <BrandMark size={36} />
           <span className="hidden text-base font-semibold text-slate-900 sm:block">
-            {env.companyName}
+            {settings.company_name}
           </span>
         </Link>
 

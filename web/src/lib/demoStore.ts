@@ -5,10 +5,11 @@
  * เพื่อให้ทดลองเพิ่ม/แก้/ลบแอปได้จริงก่อนต่อระบบหลังบ้าน
  * โครงสร้างข้อมูลเหมือนกับตารางบน Supabase ทุกฟิลด์
  */
-import type { Announcement, AppEntry, AppInput, Profile } from './types'
+import type { Announcement, AppEntry, AppInput, Profile, Settings } from './types'
 
 const KEY_APPS = 'portal.demo.apps.v1'
 const KEY_ANN = 'portal.demo.announcements.v1'
+const KEY_SET = 'portal.demo.settings.v1'
 
 const now = () => new Date().toISOString()
 
@@ -189,8 +190,24 @@ export const demoStore = {
     )
   },
 
+  getSettings(): Settings {
+    return read<Settings>(KEY_SET, {
+      company_name: 'บจก. สมใจบิสกรุ๊ป',
+      logo_url: '',
+      portal_tagline: 'ศูนย์รวมระบบงานพนักงาน',
+      helpdesk_phone: '1234',
+      helpdesk_email: 'helpdesk@company.com',
+    })
+  },
+
+  saveSettings(next: Settings): Settings {
+    write(KEY_SET, next)
+    return next
+  },
+
   reset(): void {
     localStorage.removeItem(KEY_APPS)
     localStorage.removeItem(KEY_ANN)
+    localStorage.removeItem(KEY_SET)
   },
 }

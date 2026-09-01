@@ -68,3 +68,21 @@ export interface HealthResult {
   /** ข้อความอธิบายเมื่อ state = 'blocked' (เช่น mixed content) */
   reason?: string
 }
+
+/** ค่าตั้งค่าองค์กรที่ผู้ดูแลระบบแก้ได้จากหน้าเว็บ */
+export interface Settings {
+  company_name: string
+  /** โลโก้ — เก็บเป็น data URI ที่อัปโหลดเอง หรือ URL ภายนอกก็ได้ เว้นว่าง = ใช้ตัวย่อ CP */
+  logo_url: string
+  portal_tagline: string
+  helpdesk_phone: string
+  helpdesk_email: string
+}
+
+export const SETTING_LABELS: Record<keyof Settings, string> = {
+  company_name: 'ชื่อบริษัท',
+  logo_url: 'โลโก้',
+  portal_tagline: 'คำบรรยายใต้ชื่อ',
+  helpdesk_phone: 'เบอร์ติดต่อ IT Helpdesk',
+  helpdesk_email: 'อีเมล IT Helpdesk',
+}
