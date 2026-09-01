@@ -3,10 +3,13 @@
  * (หัวข้อ ตาราง บล็อกโค้ด กล่องข้อความเน้น หน้าปก header/footer)
  */
 import {
-  AlignmentType, BorderStyle, Footer, Header, HeadingLevel, PageBreak, PageNumber,
-  Paragraph, ShadingType, Table, TableCell, TableRow, TextRun, VerticalAlign,
-  WidthType, convertMillimetersToTwip,
+  AlignmentType, BorderStyle, Footer, Header, HeadingLevel, ImageRun, PageBreak,
+  PageNumber, Paragraph, ShadingType, Table, TableCell, TableRow, TextRun,
+  VerticalAlign, WidthType, convertMillimetersToTwip,
 } from 'docx'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
 
 export const FONT = 'Tahoma'          // รองรับภาษาไทยและมีอยู่ในทุกเครื่อง Windows
 export const MONO = 'Consolas'
@@ -78,6 +81,55 @@ export const box = (color) => ({
 
 export const spacer = (after = 200) => new Paragraph({ spacing: { after }, children: [] })
 export const pageBreak = () => new Paragraph({ children: [new PageBreak()] })
+
+// ---------------------------------------------------------------------------
+// ภาพประกอบ
+// ---------------------------------------------------------------------------
+const SCREENS = join(dirname(fileURLToPath(import.meta.url)), '..', 'screens')
+
+/** อ่านขนาดจริงของไฟล์ PNG จากส่วนหัว IHDR */
+function pngSize(buffer) {
+  if (buffer.readUInt32BE(0) !== 0x89504e47) throw new Error('ไม่ใช่ไฟล์ PNG')
+  return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) }
+}
+
+let figureNo = 0
+export const resetFigureCounter = () => { figureNo = 0 }
+
+/**
+ * ภาพประกอบพร้อมคำบรรยายและเลขที่ภาพ
+ * ภาพถ่ายที่ deviceScaleFactor 2 จึงย่อลงครึ่งหนึ่งเพื่อให้คมบนกระดาษ
+ *
+ * @param {string} name   ชื่อไฟล์ใน docs/screens (ไม่ต้องใส่ .png)
+ * @param {string} caption คำบรรยายใต้ภาพ
+ * @param {number} maxWidth ความกว้างสูงสุดเป็นพิกเซล (พื้นที่พิมพ์ ≈ 620)
+ */
+export const figure = (name, caption, maxWidth = 600) => {
+  const data = readFileSync(join(SCREENS, name + '.png'))
+  const { width, height } = pngSize(data)
+  const w = Math.min(maxWidth, width / 2)
+  const h = Math.round((height / width) * w)
+  figureNo += 1
+
+  return [
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 160, after: 60 },
+      children: [
+        new ImageRun({ type: 'png', data, transformation: { width: Math.round(w), height: h } }),
+      ],
+      border: box(RULE),
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 220 },
+      children: [
+        run(`ภาพที่ ${figureNo}  `, { size: 18, bold: true, color: NAVY }),
+        run(caption, { size: 18, color: GREY }),
+      ],
+    }),
+  ]
+}
 
 /** บล็อกโค้ด — พื้นเทา ฟอนต์ monospace */
 export const code = (lines, caption) => {

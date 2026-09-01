@@ -2,21 +2,41 @@
 /**
  * จุดตรวจสถานะสำหรับหน้า Portal บนคลาวด์
  *
- * หน้า Portal จะยิงมาที่ไฟล์นี้เป็นระยะ ถ้าตอบกลับได้แปลว่าเครื่องผู้ใช้
+ * หน้า Portal ยิงมาที่ไฟล์นี้เป็นระยะ ถ้าตอบกลับได้แปลว่าเครื่องผู้ใช้
  * อยู่ในเครือข่ายภายใน (ต่อ VPN แล้ว) จึงเปลี่ยนการ์ดเป็นสีเขียว
  *
+ * ไฟล์นี้ตั้งใจให้ "ยืนไฟล์เดียวได้" — ไม่พึ่ง composer และไม่พึ่งไฟล์อื่น
+ * จึงคัดลอกไปวางที่ราก document root ของระบบงานอื่นได้ทันที
+ * แก้เฉพาะรายการโดเมนใน $ALLOWED_ORIGINS ด้านล่าง
+ *
  * ความปลอดภัย: ตอบ CORS เฉพาะ origin ที่อยู่ใน allowlist เท่านั้น
- * (ต้นฉบับใช้ '*' ซึ่งเปิดให้เว็บใดก็ได้ใช้เครื่องพนักงานสำรวจเครือข่ายภายใน)
+ * ห้ามใช้ '*' เพราะจะเปิดให้เว็บใดก็ได้ใช้เครื่องพนักงานสำรวจเครือข่ายภายใน
  */
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/lib/bootstrap.php';
+// ---------------------------------------------------------------------------
+// โดเมนของพอร์ทัลที่อนุญาต — แก้ให้ตรงกับที่ใช้งานจริง
+// ---------------------------------------------------------------------------
+$ALLOWED_ORIGINS = [
+    'https://company-portal-sso.vercel.app',
+    'https://portal.company.com',
+    'http://localhost:5173',
+];
 
-$allowed = portal_config()['security']['portalOrigins'] ?? [];
-$origin  = $_SERVER['HTTP_ORIGIN'] ?? '';
+// ถ้าติดตั้งอยู่ในโปรเจกต์ที่มี config.php ให้ใช้รายการจากไฟล์นั้นแทน
+$configPath = __DIR__ . '/config.php';
+if (is_file($configPath)) {
+    $config = require $configPath;
+    if (!empty($config['security']['portalOrigins']) && is_array($config['security']['portalOrigins'])) {
+        $ALLOWED_ORIGINS = $config['security']['portalOrigins'];
+    }
+}
 
-if ($origin !== '' && in_array($origin, $allowed, true)) {
+// ---------------------------------------------------------------------------
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+if ($origin !== '' && in_array($origin, $ALLOWED_ORIGINS, true)) {
     header('Access-Control-Allow-Origin: ' . $origin);
     header('Vary: Origin');
     header('Access-Control-Allow-Methods: GET, OPTIONS');

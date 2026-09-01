@@ -42,7 +42,7 @@ export const api = {
 
   /** สำหรับหน้า Admin — เห็นแอปที่ปิดใช้งานด้วย */
   async listAllApps(): Promise<AppEntry[]> {
-    if (!isLive) return demoStore.listApps()
+    if (!isLive) return demoStore.listAllApps()
     const { data, error } = await requireSupabase()
       .from('apps')
       .select(APP_COLUMNS)

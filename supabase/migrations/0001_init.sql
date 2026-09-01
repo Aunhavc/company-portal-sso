@@ -196,10 +196,20 @@ begin
   if public.is_admin() then
     return new;
   end if;
+
+  -- ผู้ใช้ทั่วไปห้ามเปลี่ยนสิทธิ์ สถานะ หรือรหัสประจำตัวของตัวเอง
   new.role      := old.role;
   new.is_active := old.is_active;
   new.id        := old.id;
-  new.email     := old.email;
+
+  -- อีเมลเปลี่ยนได้เฉพาะเมื่อค่าใหม่ตรงกับอีเมลใน JWT
+  -- (เส้นทางเดียวที่ทำได้คือ RPC sync_profile ซึ่งอ่านค่าจากโทเคนเอง)
+  -- ถ้าไม่มีเงื่อนไขนี้ อีเมลที่เปลี่ยนใน Auth0 จะไม่มีวันซิงค์ลงตารางนี้ได้เลย
+  if new.email is distinct from old.email
+     and lower(new.email) is distinct from lower(coalesce(auth.jwt() ->> 'email', '')) then
+    new.email := old.email;
+  end if;
+
   return new;
 end;
 $$;

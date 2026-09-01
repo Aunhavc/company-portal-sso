@@ -27,12 +27,19 @@ const EMPTY: AppInput = {
   is_active: true,
 }
 
+/**
+ * สร้างรหัสอ้างอิงจากชื่อแอป — เก็บเฉพาะ a-z 0-9 และขีดกลาง
+ * ชื่อภาษาไทยล้วนจะได้ผลลัพธ์ว่าง ผู้ใช้ต้องพิมพ์รหัสเป็นภาษาอังกฤษเอง
+ * (รหัสนี้ใช้อ้างอิงในโค้ดและเป็นคีย์ไม่ซ้ำในฐานข้อมูล จึงไม่ควรมีอักขระไทย)
+ */
 function slugify(name: string): string {
   return name
     .toLowerCase()
-    .replace(/[^a-z0-9ก-๙\s-]/g, '')
+    .replace(/[^a-z0-9\s-]/g, ' ')
     .trim()
     .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
     .slice(0, 40)
 }
 
@@ -49,10 +56,15 @@ export function AppFormModal({ open, editing, categories, saving, onClose, onSub
   const [form, setForm] = useState<AppInput>(EMPTY)
   const [slugTouched, setSlugTouched] = useState(false)
   const [probing, setProbing] = useState<'idle' | 'running' | 'ok' | 'fail'>('idle')
+  /** ช่องที่ผู้ใช้แตะแล้ว — ใช้กันไม่ให้ขึ้นข้อความแดงตั้งแต่ยังไม่ได้กรอกอะไรเลย */
+  const [touched, setTouched] = useState<Partial<Record<keyof AppInput, boolean>>>({})
+  const [submitAttempted, setSubmitAttempted] = useState(false)
 
   useEffect(() => {
     if (!open) return
     setProbing('idle')
+    setTouched({})
+    setSubmitAttempted(false)
     if (editing) {
       const { id: _id, created_at: _c, updated_at: _u, ...rest } = editing
       setForm(rest)
@@ -63,8 +75,10 @@ export function AppFormModal({ open, editing, categories, saving, onClose, onSub
     }
   }, [open, editing])
 
-  const set = <K extends keyof AppInput>(key: K, value: AppInput[K]) =>
+  const set = <K extends keyof AppInput>(key: K, value: AppInput[K]) => {
+    setTouched((t) => (t[key] ? t : { ...t, [key]: true }))
     setForm((f) => ({ ...f, [key]: value }))
+  }
 
   const errors = useMemo(() => {
     const e: Partial<Record<keyof AppInput, string>> = {}
@@ -78,6 +92,16 @@ export function AppFormModal({ open, editing, categories, saving, onClose, onSub
   }, [form])
 
   const valid = Object.keys(errors).length === 0
+
+  /** แสดงข้อความแดงเฉพาะช่องที่แตะแล้ว หรือหลังกดบันทึกไปครั้งหนึ่ง */
+  const errorOf = (key: keyof AppInput) =>
+    submitAttempted || touched[key] ? errors[key] : undefined
+
+  const submit = () => {
+    setSubmitAttempted(true)
+    if (!valid) return
+    onSubmit({ ...form, slug: form.slug.trim(), name: form.name.trim() })
+  }
 
   async function testHealth() {
     if (!form.health_url) return
@@ -114,9 +138,13 @@ export function AppFormModal({ open, editing, categories, saving, onClose, onSub
           </button>
           <button
             type="button"
-            disabled={!valid || saving}
-            onClick={() => onSubmit({ ...form, slug: form.slug.trim(), name: form.name.trim() })}
-            className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={saving}
+            onClick={submit}
+            className={cx(
+              'rounded-lg px-5 py-2 text-sm font-semibold text-white shadow-sm transition',
+              valid ? 'bg-blue-600 hover:bg-blue-700' : 'bg-slate-300',
+              saving && 'cursor-not-allowed opacity-60',
+            )}
           >
             {saving ? 'กำลังบันทึก…' : editing ? 'บันทึกการแก้ไข' : 'เพิ่มแอป'}
           </button>
@@ -146,19 +174,22 @@ export function AppFormModal({ open, editing, categories, saving, onClose, onSub
         {/* --- ข้อมูลพื้นฐาน --- */}
         <Fieldset legend="ข้อมูลพื้นฐาน">
           <Row>
-            <Field label="ชื่อแอป" error={errors.name} required className="sm:col-span-2">
+            <Field label="ชื่อแอป" error={errorOf('name')} required className="sm:col-span-2">
               <input
                 className={inputCls}
                 value={form.name}
                 placeholder="เช่น ระบบจัดซื้อออนไลน์"
                 onChange={(e) => {
-                  set('name', e.target.value)
-                  if (!slugTouched) set('slug', slugify(e.target.value))
+                  const name = e.target.value
+                  set('name', name)
+                  // เติม slug ให้อัตโนมัติ แต่ไม่ถือว่าผู้ใช้แตะช่องนั้น
+                  // (ไม่งั้นจะขึ้นข้อความแดงทันทีตอนพิมพ์ชื่อภาษาไทย)
+                  if (!slugTouched) setForm((f) => ({ ...f, slug: slugify(name) }))
                 }}
               />
             </Field>
 
-            <Field label="รหัสอ้างอิง (slug)" error={errors.slug} required hint="ห้ามซ้ำกับแอปอื่น">
+            <Field label="รหัสอ้างอิง (slug)" error={errorOf('slug')} required hint="ห้ามซ้ำกับแอปอื่น">
               <input
                 className={inputCls}
                 value={form.slug}
@@ -229,7 +260,7 @@ export function AppFormModal({ open, editing, categories, saving, onClose, onSub
             </div>
           </Field>
 
-          <Field label="URL ปลายทาง" error={errors.url} required>
+          <Field label="URL ปลายทาง" error={errorOf('url')} required>
             <input
               className={inputCls}
               value={form.url}
@@ -241,7 +272,7 @@ export function AppFormModal({ open, editing, categories, saving, onClose, onSub
           <Field
             label="URL สำหรับเข้าผ่าน SSO"
             hint="ถ้ากรอก ระบบจะพาไป URL นี้แทนเพื่อล็อกอินอัตโนมัติ (เช่น .../auth-callback.php)"
-            error={errors.sso_url}
+            error={errorOf('sso_url')}
           >
             <input
               className={inputCls}
@@ -254,7 +285,7 @@ export function AppFormModal({ open, editing, categories, saving, onClose, onSub
           <Field
             label="URL ตรวจสอบสถานะ (health check)"
             hint="ถ้ากรอก การ์ดจะแสดงไฟเขียว/เทาบอกว่าเข้าถึงได้หรือไม่ — แนะนำสำหรับระบบภายใน"
-            error={errors.health_url}
+            error={errorOf('health_url')}
           >
             <div className="flex gap-2">
               <input
@@ -339,7 +370,7 @@ export function AppFormModal({ open, editing, categories, saving, onClose, onSub
             </div>
           </Field>
 
-          <Field label="ใครเห็นแอปนี้ได้" error={errors.allowed_roles} required>
+          <Field label="ใครเห็นแอปนี้ได้" error={errorOf('allowed_roles')} required>
             <div className="flex gap-4">
               {(['user', 'admin'] as UserRole[]).map((role) => (
                 <label key={role} className="flex items-center gap-2 text-sm text-slate-700">

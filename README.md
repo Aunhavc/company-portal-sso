@@ -85,8 +85,16 @@ SSO/
 
 | รายการ | ผล |
 |---|---|
-| `npm run build` (tsc + vite) | ผ่าน ไม่มี error/warning ด้าน type |
-| เรนเดอร์จริงบน DOM (jsdom) | ผ่าน — login → portal → การ์ด 5 ใบ + ประกาศ 3 รายการ → modal VPN → admin → เพิ่มแอปสำเร็จ · ไม่มี runtime error |
-| SPA fallback (`/admin/apps` deep link) | ผ่าน (200 + `#root`) |
+| `npm run build` (tsc + vite) | ผ่าน ไม่มี error |
+| `tsc --noEmit` | ผ่าน |
+| ชุดทดสอบเรนเดอร์จริงบน DOM (14 กรณี) | ผ่าน 14/14 ไม่มี runtime error |
 | `php -l` ทุกไฟล์ PHP (PHP 8.3) | ผ่านทั้ง 7 ไฟล์ |
+| `ping.php` ทำงานแบบยืนไฟล์เดียว | ผ่าน (ไม่ต้องมี composer) |
+| คู่มือทั้งสองเล่มเปิดด้วย Microsoft Word | ผ่าน · ภาพประกอบ 16 ภาพไม่มีภาพเสีย |
 | SQL migration | ยังไม่ได้รันจริง — ต้องรันบน Supabase project ของจริง |
+
+## ภาพประกอบในคู่มือ
+
+ภาพทั้งหมดใน `docs/screens/` ถ่ายจากระบบที่ให้บริการจริงด้วยสคริปต์
+`docs/tools/capture-screens.mjs` (ขับ Chrome ผ่าน puppeteer-core)
+ถ่ายใหม่ได้ด้วย `cd docs/tools && npm run capture && npm run build:all`

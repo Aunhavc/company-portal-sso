@@ -138,14 +138,24 @@ const seedAnnouncements: Announcement[] = [
 ]
 
 export const demoStore = {
-  listApps(): AppEntry[] {
+  /** ทุกรายการรวมที่ปิดใช้งาน — ใช้กับหน้าจัดการแอป */
+  listAllApps(): AppEntry[] {
     const apps = read<AppEntry[]>(KEY_APPS, seedApps)
     if (!localStorage.getItem(KEY_APPS)) write(KEY_APPS, apps)
     return [...apps].sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name, 'th'))
   },
 
+  /**
+   * เฉพาะรายการที่เปิดใช้งาน — ใช้กับหน้าหลักที่พนักงานเห็น
+   * ให้ผลตรงกับฝั่ง Supabase ที่กรอง is_active ด้วย RLS
+   */
+  listApps(): AppEntry[] {
+    return demoStore.listAllApps().filter((a) => a.is_active)
+  },
+
   createApp(input: AppInput): AppEntry {
-    const apps = demoStore.listApps()
+    // ต้องอ่านรายการทั้งหมดก่อนเขียนกลับ มิฉะนั้นแอปที่ปิดใช้งานอยู่จะหายไป
+    const apps = demoStore.listAllApps()
     const entry: AppEntry = {
       ...input,
       id: apps.reduce((max, a) => Math.max(max, a.id), 0) + 1,
@@ -157,7 +167,7 @@ export const demoStore = {
   },
 
   updateApp(id: number, input: AppInput): AppEntry {
-    const apps = demoStore.listApps()
+    const apps = demoStore.listAllApps()
     const next = apps.map((a) => (a.id === id ? { ...a, ...input, updated_at: now() } : a))
     write(KEY_APPS, next)
     const found = next.find((a) => a.id === id)
@@ -166,7 +176,7 @@ export const demoStore = {
   },
 
   deleteApp(id: number): void {
-    write(KEY_APPS, demoStore.listApps().filter((a) => a.id !== id))
+    write(KEY_APPS, demoStore.listAllApps().filter((a) => a.id !== id))
   },
 
   listAnnouncements(): Announcement[] {
