@@ -193,6 +193,13 @@ security definer
 set search_path = public
 as $$
 begin
+  -- ไม่มี JWT = คำสั่งมาจาก SQL Editor, migration หรือฝั่งเซิร์ฟเวอร์ที่เชื่อถือได้
+  -- ต้องปล่อยผ่าน มิฉะนั้นผู้ดูแลจะตั้ง role ให้ใครไม่ได้เลย และ trigger จะย้อนค่า
+  -- กลับเงียบ ๆ โดยไม่มีข้อความแจ้งเตือนใด ๆ (เคยทำให้ตั้ง admin ไม่ติดมาแล้ว)
+  if public.auth0_sub() is null then
+    return new;
+  end if;
+
   if public.is_admin() then
     return new;
   end if;
