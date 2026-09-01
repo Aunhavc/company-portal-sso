@@ -27,7 +27,8 @@ param(
   [string]$AppName   = 'Company Portal - Internet',
   [string]$ApiName   = 'Company Portal API',
   [string]$Audience  = 'https://api.company.local',
-  [string]$TestEmail = ''
+  [string]$TestEmail = '',
+  [switch]$SkipSignup
 )
 
 $ErrorActionPreference = 'Stop'
@@ -41,7 +42,9 @@ function Warn($text)     { Write-Host "    !   $text" -ForegroundColor Yellow }
 
 # ---------------------------------------------------------------------------
 Step 1 'สมัครบัญชี Auth0 (ขั้นตอนเดียวที่ต้องทำเอง)'
-if (-not (Test-Path $CliExe)) {
+if ($SkipSignup) {
+  Ok 'ข้ามขั้นตอนสมัคร (ระบุ -SkipSignup มาแล้ว)'
+} elseif (-not (Test-Path $CliExe)) {
   Write-Host @'
     กำลังเปิดหน้าสมัคร Auth0 ในเบราว์เซอร์
     - เลือกแผน Free (รองรับ 7,500 active users เพียงพอสำหรับ 250 คน)
