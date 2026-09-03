@@ -133,7 +133,7 @@ export function AdminUsers() {
                         value={p.role}
                         disabled={isSelf || busy}
                         onChange={(e) => void apply(p, { role: e.target.value as UserRole })}
-                        className="rounded-lg border border-slate-300 px-2 py-1 text-sm disabled:opacity-50"
+                        className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-900 disabled:opacity-50"
                       >
                         <option value="user">พนักงาน</option>
                         <option value="admin">ผู้ดูแลระบบ</option>
