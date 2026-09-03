@@ -39,6 +39,8 @@ export const env = {
     clientId: auth0ClientId,
     audience: auth0Audience || undefined,
     connection: str('VITE_AUTH0_CONNECTION') || undefined,
+    /** ชื่อ enterprise connection ของ AD — ถ้าตั้งไว้ หน้าล็อกอินจะมีปุ่มเข้าด้วยบัญชีพนักงาน */
+    adConnection: str('VITE_AUTH0_AD_CONNECTION') || undefined,
   },
   supabase: {
     url: supabaseUrl,

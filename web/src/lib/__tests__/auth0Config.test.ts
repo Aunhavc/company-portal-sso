@@ -5,6 +5,7 @@ import {
   AUTH0_SCOPES,
   clearAuth0Cache,
   AUTH0_CACHE_PREFIX,
+  buildLoginParams,
 } from '../auth0Config'
 
 describe('ค่าตั้งต้นของ Auth0', () => {
@@ -91,5 +92,28 @@ describe('clearAuth0Cache', () => {
 
   it('ไม่พังเมื่อไม่มีแคชให้ลบ', () => {
     expect(clearAuth0Cache()).toBe(0)
+  })
+})
+
+describe('buildLoginParams — เลือก connection ตอนล็อกอิน', () => {
+  it('ไม่ระบุ connection เมื่อไม่ได้ส่งค่าและไม่ได้ตั้ง env', () => {
+    expect(buildLoginParams()).toBeUndefined()
+  })
+
+  it('ส่ง connection ที่ระบุเข้าไปใน authorizationParams', () => {
+    expect(buildLoginParams('somjai-ad')).toEqual({
+      authorizationParams: { connection: 'somjai-ad' },
+    })
+  })
+
+  it('ตัดช่องว่างหัวท้ายออก', () => {
+    expect(buildLoginParams('  somjai-ad  ')).toEqual({
+      authorizationParams: { connection: 'somjai-ad' },
+    })
+  })
+
+  it('ถือว่าสตริงว่างคือไม่ระบุ ไม่ใช่ connection ชื่อว่าง', () => {
+    expect(buildLoginParams('')).toBeUndefined()
+    expect(buildLoginParams('   ')).toBeUndefined()
   })
 })

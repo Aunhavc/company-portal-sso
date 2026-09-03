@@ -8,8 +8,8 @@ import {
   type ReactNode,
 } from 'react'
 import { Auth0Provider, useAuth0 } from '@auth0/auth0-react'
-import { env, isLive } from './env'
-import { buildAuth0Options, clearAuth0Cache } from './auth0Config'
+import { isLive } from './env'
+import { buildAuth0Options, buildLoginParams, clearAuth0Cache } from './auth0Config'
 import { api } from './api'
 import { setAccessTokenProvider, peekTokenError, clearTokenError } from './supabase'
 import { demoProfile } from './demoStore'
@@ -27,7 +27,8 @@ export interface Session {
   profile: Profile | null
   isAdmin: boolean
   error: string | null
-  login: () => void
+  /** ระบุชื่อ connection เพื่อพาไปช่องทางนั้นตรง ๆ เช่น 'somjai-ad' */
+  login: (connection?: string) => void
   logout: () => void
   /** ล้างแคชโทเคนที่ค้างแล้วพาไปล็อกอินใหม่ — ใช้กู้เมื่อโทเคนใช้ต่อไม่ได้ */
   relogin: () => void
@@ -83,9 +84,7 @@ function LiveSession({ children }: { children: ReactNode }) {
   const relogin = useCallback(() => {
     clearAuth0Cache()
     clearTokenError()
-    void loginWithRedirect({
-      authorizationParams: env.auth0.connection ? { connection: env.auth0.connection } : undefined,
-    })
+    void loginWithRedirect(buildLoginParams())
   }, [loginWithRedirect])
 
   // ส่งวิธีขอ access token ให้ supabase client ใช้แนบไปกับทุก request
@@ -137,12 +136,7 @@ function LiveSession({ children }: { children: ReactNode }) {
       profile,
       isAdmin: profile?.role === 'admin',
       error: error ?? authError?.message ?? null,
-      login: () =>
-        void loginWithRedirect({
-          authorizationParams: env.auth0.connection
-            ? { connection: env.auth0.connection }
-            : undefined,
-        }),
+      login: (connection?: string) => void loginWithRedirect(buildLoginParams(connection)),
       logout: () => {
         clearAuth0Cache()
         void auth0Logout({ logoutParams: { returnTo: window.location.origin } })
@@ -189,6 +183,7 @@ function DemoSession({ children }: { children: ReactNode }) {
         localStorage.setItem(DEMO_KEY, '1')
         setSignedIn(true)
       },
+
       logout: () => {
         localStorage.setItem(DEMO_KEY, '0')
         setSignedIn(false)

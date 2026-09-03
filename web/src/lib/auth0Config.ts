@@ -84,3 +84,25 @@ export function clearAuth0Cache(): number {
   doomed.forEach((k) => localStorage.removeItem(k))
   return doomed.length
 }
+
+/**
+ * ตัวเลือกที่ส่งให้ loginWithRedirect
+ *
+ * Auth0 Universal Login ไม่แสดงปุ่มของ enterprise connection ให้เสมอไป
+ * พอร์ทัลจึงระบุ connection เองตรง ๆ เพื่อพาผู้ใช้ไปยังช่องทางที่ต้องการแน่นอน
+ *
+ * ลำดับความสำคัญ: ค่าที่ส่งเข้ามา > ค่าบังคับจาก env > ไม่ระบุ (ให้ Auth0 เลือกเอง)
+ */
+export function buildLoginParams(
+  connection?: string,
+): { authorizationParams: { connection: string } } | undefined {
+  const chosen = (connection ?? env.auth0.connection ?? '').trim()
+  if (!chosen) return undefined
+  return { authorizationParams: { connection: chosen } }
+}
+
+/** ชื่อ connection ของ AD ถ้าตั้งค่าไว้ */
+export function adConnectionName(): string | undefined {
+  const name = (env.auth0.adConnection ?? '').trim()
+  return name || undefined
+}
