@@ -144,7 +144,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       authorizationParams={{
         redirect_uri: window.location.origin,
         audience: env.auth0.audience,
-        scope: 'openid profile email',
+        scope: 'openid profile email offline_access',
       }}
       cacheLocation="localstorage"
       useRefreshTokens

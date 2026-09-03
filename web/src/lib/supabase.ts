@@ -18,14 +18,40 @@ export function setAccessTokenProvider(fn: TokenProvider | null) {
   tokenProvider = fn
 }
 
+/** แปลง error ของ auth0-spa-js ให้เป็นข้อความที่บอกทางแก้ได้จริง */
+function describeTokenError(e: unknown): string {
+  const code = (e as { error?: string })?.error ?? ''
+  const detail = e instanceof Error ? e.message : String(e)
+
+  if (code === 'login_required' || code === 'consent_required') {
+    return 'เซสชันกับ Auth0 หมดอายุแล้ว — กรุณาออกจากระบบแล้วเข้าสู่ระบบใหม่อีกครั้ง'
+  }
+  if (code === 'missing_refresh_token' || detail.includes('Missing Refresh Token')) {
+    return (
+      'ไม่มี refresh token สำหรับต่ออายุเซสชัน — ' +
+      'ตรวจว่าเปิด "Allow Offline Access" ที่ API ใน Auth0 แล้ว จากนั้นออกจากระบบแล้วเข้าใหม่'
+    )
+  }
+  if (code === 'timeout' || detail.includes('Timeout')) {
+    return (
+      'ต่ออายุเซสชันกับ Auth0 ไม่ทัน — ' +
+      'มักเกิดจากเบราว์เซอร์บล็อกคุกกี้บุคคลที่สาม กรุณาออกจากระบบแล้วเข้าใหม่'
+    )
+  }
+  return `ขอ access token จาก Auth0 ไม่สำเร็จ (${code || detail})`
+}
+
 export const supabase: SupabaseClient | null = isLive
   ? createClient(env.supabase.url, env.supabase.anonKey, {
       accessToken: async () => {
+        // ยังไม่ล็อกอิน (เช่น หน้าล็อกอินที่ต้องอ่านชื่อบริษัท/โลโก้) — ใช้สิทธิ์ anon ตามปกติ
         if (!tokenProvider) return ''
         try {
           return await tokenProvider()
-        } catch {
-          return ''
+        } catch (e) {
+          // ห้ามคืนค่าว่างเงียบ ๆ มิฉะนั้น request จะถูกยิงด้วย anon key
+          // แล้วฝั่ง Postgres จะรายงานว่า "not authenticated" ซึ่งชี้ต้นเหตุผิดจุด
+          throw new Error(describeTokenError(e))
         }
       },
       db: { schema: 'public' },
