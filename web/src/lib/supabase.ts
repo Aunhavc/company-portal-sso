@@ -13,13 +13,13 @@ type TokenProvider = () => Promise<string>
 
 let tokenProvider: TokenProvider | null = null
 
-/** เรียกจาก <App/> หลัง Auth0 พร้อมใช้งาน */
+/** เรียกจาก <LiveSession/> หลัง Auth0 พร้อมใช้งาน */
 export function setAccessTokenProvider(fn: TokenProvider | null) {
   tokenProvider = fn
 }
 
 /** แปลง error ของ auth0-spa-js ให้เป็นข้อความที่บอกทางแก้ได้จริง */
-function describeTokenError(e: unknown): string {
+export function describeTokenError(e: unknown): string {
   const code = (e as { error?: string })?.error ?? ''
   const detail = e instanceof Error ? e.message : String(e)
 
@@ -41,19 +41,26 @@ function describeTokenError(e: unknown): string {
   return `ขอ access token จาก Auth0 ไม่สำเร็จ (${code || detail})`
 }
 
+/**
+ * หา access token ที่จะแนบไปกับทุก request ของ Supabase
+ *
+ * ⚠️ ห้ามคืนค่าว่างเมื่อขอโทเคนไม่สำเร็จ มิฉะนั้น supabase-js จะถอยไปใช้ anon key
+ *    แล้ว Postgres จะรายงานว่า "not authenticated" ซึ่งชี้ต้นเหตุผิดจุดโดยสิ้นเชิง
+ *    (มีเทสต์คุมใน supabase.test.ts)
+ */
+export async function resolveAccessToken(): Promise<string> {
+  // ยังไม่ล็อกอิน เช่น หน้าล็อกอินที่ต้องอ่านชื่อบริษัท/โลโก้ — ใช้สิทธิ์ anon ตามปกติ
+  if (!tokenProvider) return ''
+  try {
+    return await tokenProvider()
+  } catch (e) {
+    throw new Error(describeTokenError(e))
+  }
+}
+
 export const supabase: SupabaseClient | null = isLive
   ? createClient(env.supabase.url, env.supabase.anonKey, {
-      accessToken: async () => {
-        // ยังไม่ล็อกอิน (เช่น หน้าล็อกอินที่ต้องอ่านชื่อบริษัท/โลโก้) — ใช้สิทธิ์ anon ตามปกติ
-        if (!tokenProvider) return ''
-        try {
-          return await tokenProvider()
-        } catch (e) {
-          // ห้ามคืนค่าว่างเงียบ ๆ มิฉะนั้น request จะถูกยิงด้วย anon key
-          // แล้วฝั่ง Postgres จะรายงานว่า "not authenticated" ซึ่งชี้ต้นเหตุผิดจุด
-          throw new Error(describeTokenError(e))
-        }
-      },
+      accessToken: resolveAccessToken,
       db: { schema: 'public' },
       global: { headers: { 'x-application-name': 'company-portal' } },
     })

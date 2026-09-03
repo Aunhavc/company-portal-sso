@@ -32,7 +32,7 @@ const EMPTY: AppInput = {
  * ชื่อภาษาไทยล้วนจะได้ผลลัพธ์ว่าง ผู้ใช้ต้องพิมพ์รหัสเป็นภาษาอังกฤษเอง
  * (รหัสนี้ใช้อ้างอิงในโค้ดและเป็นคีย์ไม่ซ้ำในฐานข้อมูล จึงไม่ควรมีอักขระไทย)
  */
-function slugify(name: string): string {
+export function slugify(name: string): string {
   return name
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, ' ')

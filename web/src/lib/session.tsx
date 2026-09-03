@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Auth0Provider, useAuth0 } from '@auth0/auth0-react'
 import { env, isLive } from './env'
+import { buildAuth0Options } from './auth0Config'
 import { api } from './api'
 import { setAccessTokenProvider } from './supabase'
 import { demoProfile } from './demoStore'
@@ -138,17 +139,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   if (!isLive) return <DemoSession>{children}</DemoSession>
 
   return (
-    <Auth0Provider
-      domain={env.auth0.domain}
-      clientId={env.auth0.clientId}
-      authorizationParams={{
-        redirect_uri: window.location.origin,
-        audience: env.auth0.audience,
-        scope: 'openid profile email offline_access',
-      }}
-      cacheLocation="localstorage"
-      useRefreshTokens
-    >
+    <Auth0Provider {...buildAuth0Options(window.location.origin)}>
       <LiveSession>{children}</LiveSession>
     </Auth0Provider>
   )
