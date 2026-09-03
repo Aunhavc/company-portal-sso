@@ -4,17 +4,47 @@ import { Portal } from './pages/Portal'
 import { AdminApps } from './pages/AdminApps'
 import { Login } from './pages/Login'
 import { useSession } from './lib/session'
+import { resolveView } from './lib/access'
 
 export default function App() {
-  const { isLoading, isAuthenticated, profile, isAdmin, error, relogin, needsReauth } =
+  const { isLoading, isAuthenticated, profile, isAdmin, error, relogin, needsReauth, logout } =
     useSession()
 
-  if (isLoading) return <FullPageSpinner />
+  const view = resolveView({ isLoading, isAuthenticated, profile })
 
-  if (!isAuthenticated) return <Login />
+  if (view === 'loading') return <FullPageSpinner />
+
+  if (view === 'login') return <Login />
+
+  // ล็อกอินผ่านแล้วแต่ยังไม่ได้รับอนุมัติให้ใช้งาน
+  if (view === 'pending') {
+    return (
+      <div className="grid min-h-screen place-items-center bg-slate-50 px-4">
+        <div className="max-w-lg rounded-2xl border border-amber-200 bg-white p-6 shadow-sm">
+          <h1 className="text-lg font-bold text-slate-900">บัญชีนี้รอการอนุมัติ</h1>
+          <p className="mt-2 text-sm leading-relaxed text-slate-600">
+            ยืนยันตัวตนสำเร็จแล้ว แต่บัญชีนี้ยังไม่ได้รับอนุญาตให้เข้าใช้งานพอร์ทัล
+            กรุณาติดต่อผู้ดูแลระบบเพื่อขออนุมัติ แล้วเข้าสู่ระบบใหม่อีกครั้ง
+          </p>
+          {profile?.email ? (
+            <p className="mt-3 rounded-lg bg-slate-100 p-3 text-xs text-slate-600">
+              บัญชีที่ใช้เข้าสู่ระบบ: <span className="font-semibold">{profile.email}</span>
+            </p>
+          ) : null}
+          <button
+            type="button"
+            onClick={logout}
+            className="mt-4 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+          >
+            ออกจากระบบ
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   // ล็อกอินผ่านแล้วแต่ซิงค์โปรไฟล์ไม่สำเร็จ — ส่วนใหญ่คือ Supabase Third-Party Auth ยังไม่ได้ตั้ง
-  if (!profile) {
+  if (view === 'sync-error') {
     return (
       <div className="grid min-h-screen place-items-center bg-slate-50 px-4">
         <div className="max-w-lg rounded-2xl border border-rose-200 bg-white p-6 shadow-sm">

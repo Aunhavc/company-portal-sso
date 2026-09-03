@@ -41,13 +41,6 @@ export function describeTokenError(e: unknown): string {
   return `ขอ access token จาก Auth0 ไม่สำเร็จ (${code || detail})`
 }
 
-/**
- * หา access token ที่จะแนบไปกับทุก request ของ Supabase
- *
- * ⚠️ ห้ามคืนค่าว่างเมื่อขอโทเคนไม่สำเร็จ มิฉะนั้น supabase-js จะถอยไปใช้ anon key
- *    แล้ว Postgres จะรายงานว่า "not authenticated" ซึ่งชี้ต้นเหตุผิดจุดโดยสิ้นเชิง
- *    (มีเทสต์คุมใน supabase.test.ts)
- */
 let lastTokenError: string | null = null
 
 /** true = ครั้งล่าสุดที่ขอโทเคนล้มเหลว — ใช้ตัดสินใจว่าควรพาไปล็อกอินใหม่ */
@@ -60,9 +53,23 @@ export function clearTokenError(): void {
   lastTokenError = null
 }
 
+/**
+ * หา access token ที่จะแนบไปกับทุก request ของ Supabase
+ *
+ * ⚠️ ยังไม่ล็อกอิน ต้องคืน anon key ห้ามคืนสตริงว่าง
+ *    supabase-js ใช้ `_getSessionToken() ?? supabaseKey` ซึ่ง `??` ไม่จับสตริงว่าง
+ *    ค่าว่างจึงหลุดออกไปเป็น `Authorization: Bearer ` ที่ผิดรูป แล้ว PostgREST ตอบ 401
+ *    ผลคือหน้าล็อกอินอ่านชื่อบริษัทกับโลโก้จากตาราง settings ไม่ได้
+ *
+ * ⚠️ ขอโทเคนไม่สำเร็จ ต้องโยน error ห้ามกลืนแล้วคืนค่าว่าง
+ *    มิฉะนั้น request จะถูกยิงด้วย anon key แล้ว Postgres รายงานว่า "not authenticated"
+ *    ซึ่งชี้ต้นเหตุผิดจุดโดยสิ้นเชิง
+ *
+ * ทั้งสองข้อมีเทสต์คุมใน supabase.test.ts
+ */
 export async function resolveAccessToken(): Promise<string> {
   // ยังไม่ล็อกอิน เช่น หน้าล็อกอินที่ต้องอ่านชื่อบริษัท/โลโก้ — ใช้สิทธิ์ anon ตามปกติ
-  if (!tokenProvider) return ''
+  if (!tokenProvider) return env.supabase.anonKey
   try {
     const token = await tokenProvider()
     lastTokenError = null

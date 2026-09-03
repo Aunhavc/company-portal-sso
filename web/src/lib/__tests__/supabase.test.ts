@@ -7,6 +7,9 @@ import {
   clearTokenError,
 } from '../supabase'
 
+/** ต้องตรงกับ VITE_SUPABASE_ANON_KEY ใน vitest.config.ts */
+const ANON_KEY = 'sb_publishable_test_key'
+
 function auth0Error(code: string, message = code) {
   return Object.assign(new Error(message), { error: code })
 }
@@ -14,8 +17,8 @@ function auth0Error(code: string, message = code) {
 describe('resolveAccessToken', () => {
   beforeEach(() => setAccessTokenProvider(null))
 
-  it('คืนค่าว่างเมื่อยังไม่ล็อกอิน — ให้ยิงด้วยสิทธิ์ anon ตามปกติ', async () => {
-    await expect(resolveAccessToken()).resolves.toBe('')
+  it('คืน anon key เมื่อยังไม่ล็อกอิน — ให้ยิงด้วยสิทธิ์ anon ตามปกติ', async () => {
+    await expect(resolveAccessToken()).resolves.toBe(ANON_KEY)
   })
 
   it('คืนโทเคนที่ได้จาก Auth0 เมื่อขอสำเร็จ', async () => {
@@ -52,7 +55,7 @@ describe('resolveAccessToken', () => {
     setAccessTokenProvider(async () => 'token')
     await expect(resolveAccessToken()).resolves.toBe('token')
     setAccessTokenProvider(null)
-    await expect(resolveAccessToken()).resolves.toBe('')
+    await expect(resolveAccessToken()).resolves.toBe(ANON_KEY)
   })
 })
 
@@ -117,7 +120,7 @@ describe('การติดตามสถานะ error ของโทเค
   })
 
   it('ไม่ตั้งธงเมื่อยังไม่ล็อกอิน — กรณีนี้ไม่ใช่ความผิดพลาด', async () => {
-    await expect(resolveAccessToken()).resolves.toBe('')
+    await expect(resolveAccessToken()).resolves.toBe(ANON_KEY)
     expect(peekTokenError()).toBeNull()
   })
 
@@ -128,5 +131,25 @@ describe('การติดตามสถานะ error ของโทเค
     await expect(resolveAccessToken()).rejects.toThrow()
     clearTokenError()
     expect(peekTokenError()).toBeNull()
+  })
+})
+
+describe('การถอยไปใช้สิทธิ์ anon ตอนยังไม่ล็อกอิน', () => {
+  beforeEach(() => {
+    setAccessTokenProvider(null)
+    clearTokenError()
+  })
+
+  // ด่านกันบั๊กหน้าล็อกอิน: supabase-js ใช้ `token ?? supabaseKey` ซึ่ง `??`
+  // ไม่จับสตริงว่าง การคืนค่าว่างจึงกลายเป็น `Authorization: Bearer ` ที่ผิดรูป
+  // ทำให้หน้าล็อกอินอ่านชื่อบริษัทกับโลโก้จากตาราง settings ไม่ได้
+  it('คืน anon key ไม่ใช่สตริงว่าง เมื่อยังไม่ล็อกอิน', async () => {
+    await expect(resolveAccessToken()).resolves.toBe(ANON_KEY)
+  })
+
+  it('ค่าที่คืนต้องไม่ว่างเด็ดขาด', async () => {
+    const token = await resolveAccessToken()
+    expect(token).not.toBe('')
+    expect(token.length).toBeGreaterThan(0)
   })
 })
