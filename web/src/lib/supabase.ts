@@ -48,13 +48,28 @@ export function describeTokenError(e: unknown): string {
  *    แล้ว Postgres จะรายงานว่า "not authenticated" ซึ่งชี้ต้นเหตุผิดจุดโดยสิ้นเชิง
  *    (มีเทสต์คุมใน supabase.test.ts)
  */
+let lastTokenError: string | null = null
+
+/** true = ครั้งล่าสุดที่ขอโทเคนล้มเหลว — ใช้ตัดสินใจว่าควรพาไปล็อกอินใหม่ */
+export function peekTokenError(): string | null {
+  return lastTokenError
+}
+
+/** ล้างสถานะหลังจัดการเรียบร้อยแล้ว */
+export function clearTokenError(): void {
+  lastTokenError = null
+}
+
 export async function resolveAccessToken(): Promise<string> {
   // ยังไม่ล็อกอิน เช่น หน้าล็อกอินที่ต้องอ่านชื่อบริษัท/โลโก้ — ใช้สิทธิ์ anon ตามปกติ
   if (!tokenProvider) return ''
   try {
-    return await tokenProvider()
+    const token = await tokenProvider()
+    lastTokenError = null
+    return token
   } catch (e) {
-    throw new Error(describeTokenError(e))
+    lastTokenError = describeTokenError(e)
+    throw new Error(lastTokenError)
   }
 }
 

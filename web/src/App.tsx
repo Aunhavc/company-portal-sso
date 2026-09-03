@@ -6,7 +6,8 @@ import { Login } from './pages/Login'
 import { useSession } from './lib/session'
 
 export default function App() {
-  const { isLoading, isAuthenticated, profile, isAdmin, error } = useSession()
+  const { isLoading, isAuthenticated, profile, isAdmin, error, relogin, needsReauth } =
+    useSession()
 
   if (isLoading) return <FullPageSpinner />
 
@@ -25,6 +26,21 @@ export default function App() {
             <pre className="mt-3 overflow-x-auto rounded-lg bg-slate-900 p-3 text-xs text-slate-100">
               {error}
             </pre>
+          ) : null}
+          {needsReauth ? (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <p className="text-sm leading-relaxed text-amber-900">
+                เซสชันเดิมในเบราว์เซอร์นี้ใช้ต่อไม่ได้แล้ว กดปุ่มด้านล่างเพื่อล้างแล้วเข้าสู่ระบบใหม่
+                ข้อมูลของคุณไม่หายไปไหน
+              </p>
+              <button
+                type="button"
+                onClick={relogin}
+                className="mt-3 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+              >
+                เข้าสู่ระบบใหม่
+              </button>
+            </div>
           ) : null}
           <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-slate-600">
             <li>เปิด Supabase → Authentication → Third Party Auth → เพิ่ม Auth0 domain แล้วหรือยัง</li>

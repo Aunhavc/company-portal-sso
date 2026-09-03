@@ -23,3 +23,6 @@ class MemoryStorage {
 
 const storage = new MemoryStorage()
 Object.defineProperty(globalThis, 'localStorage', { value: storage, writable: true })
+
+const session = new MemoryStorage()
+Object.defineProperty(globalThis, 'sessionStorage', { value: session, writable: true })

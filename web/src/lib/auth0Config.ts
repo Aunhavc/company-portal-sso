@@ -63,3 +63,24 @@ export function auth0ConfigProblems(opts: Auth0Options): string[] {
   }
   return problems
 }
+
+/** คีย์ที่ auth0-spa-js ใช้เก็บแคชโทเคนใน localStorage */
+export const AUTH0_CACHE_PREFIX = '@@auth0spajs@@'
+
+/**
+ * ล้างแคชโทเคนของ Auth0 ทิ้ง
+ *
+ * ใช้ตอนแคชเดิม "ค้าง" อยู่ในสภาพที่ใช้ต่อไม่ได้ เช่น เป็นแคชที่ออกก่อนระบบ
+ * จะเริ่มขอ scope offline_access จึงไม่มี refresh token อยู่ข้างใน
+ * ล้างแล้วต้องพาไปล็อกอินใหม่เสมอ
+ */
+export function clearAuth0Cache(): number {
+  if (typeof localStorage === 'undefined') return 0
+  const doomed: string[] = []
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const key = localStorage.key(i)
+    if (key && key.startsWith(AUTH0_CACHE_PREFIX)) doomed.push(key)
+  }
+  doomed.forEach((k) => localStorage.removeItem(k))
+  return doomed.length
+}

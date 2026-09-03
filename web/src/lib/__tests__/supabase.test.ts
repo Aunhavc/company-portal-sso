@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { setAccessTokenProvider, resolveAccessToken, describeTokenError } from '../supabase'
+import {
+  setAccessTokenProvider,
+  resolveAccessToken,
+  describeTokenError,
+  peekTokenError,
+  clearTokenError,
+} from '../supabase'
 
 function auth0Error(code: string, message = code) {
   return Object.assign(new Error(message), { error: code })
@@ -77,5 +83,50 @@ describe('describeTokenError บอกทางแก้ได้ตรงกร
     expect(() => describeTokenError('พัง')).not.toThrow()
     expect(() => describeTokenError(null)).not.toThrow()
     expect(() => describeTokenError(undefined)).not.toThrow()
+  })
+})
+
+describe('การติดตามสถานะ error ของโทเคน — ใช้ตัดสินใจว่าควรพาไปล็อกอินใหม่', () => {
+  beforeEach(() => {
+    setAccessTokenProvider(null)
+    clearTokenError()
+  })
+
+  it('เริ่มต้นไม่มี error ค้าง', () => {
+    expect(peekTokenError()).toBeNull()
+  })
+
+  it('บันทึกสาเหตุไว้เมื่อขอโทเคนไม่สำเร็จ', async () => {
+    setAccessTokenProvider(async () => {
+      throw auth0Error('missing_refresh_token')
+    })
+    await expect(resolveAccessToken()).rejects.toThrow()
+    expect(peekTokenError()).toContain('Allow Offline Access')
+  })
+
+  it('ล้างสถานะเองเมื่อขอโทเคนสำเร็จในรอบถัดไป', async () => {
+    setAccessTokenProvider(async () => {
+      throw auth0Error('login_required')
+    })
+    await expect(resolveAccessToken()).rejects.toThrow()
+    expect(peekTokenError()).not.toBeNull()
+
+    setAccessTokenProvider(async () => 'good-token')
+    await expect(resolveAccessToken()).resolves.toBe('good-token')
+    expect(peekTokenError()).toBeNull()
+  })
+
+  it('ไม่ตั้งธงเมื่อยังไม่ล็อกอิน — กรณีนี้ไม่ใช่ความผิดพลาด', async () => {
+    await expect(resolveAccessToken()).resolves.toBe('')
+    expect(peekTokenError()).toBeNull()
+  })
+
+  it('clearTokenError ล้างสถานะได้จริง', async () => {
+    setAccessTokenProvider(async () => {
+      throw auth0Error('timeout')
+    })
+    await expect(resolveAccessToken()).rejects.toThrow()
+    clearTokenError()
+    expect(peekTokenError()).toBeNull()
   })
 })

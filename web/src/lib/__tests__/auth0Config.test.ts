@@ -1,5 +1,11 @@
-import { describe, it, expect } from 'vitest'
-import { buildAuth0Options, auth0ConfigProblems, AUTH0_SCOPES } from '../auth0Config'
+import { describe, it, expect, beforeEach } from 'vitest'
+import {
+  buildAuth0Options,
+  auth0ConfigProblems,
+  AUTH0_SCOPES,
+  clearAuth0Cache,
+  AUTH0_CACHE_PREFIX,
+} from '../auth0Config'
 
 describe('ค่าตั้งต้นของ Auth0', () => {
   const opts = buildAuth0Options('https://portal.example.com')
@@ -65,5 +71,25 @@ describe('auth0ConfigProblems จับค่าที่ผิดได้จ�
   it('จับกรณีใช้ refresh token แต่แคชไว้ในหน่วยความจำ', () => {
     const problems = auth0ConfigProblems({ ...base, cacheLocation: 'memory' })
     expect(problems.some((p) => p.includes('localstorage'))).toBe(true)
+  })
+})
+
+describe('clearAuth0Cache', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('ลบเฉพาะแคชของ Auth0 ไม่แตะข้อมูลอื่น', () => {
+    localStorage.setItem(`${AUTH0_CACHE_PREFIX}::client::aud::scope`, 'token')
+    localStorage.setItem(`${AUTH0_CACHE_PREFIX}::client::@@user@@`, 'user')
+    localStorage.setItem('portal.demo.signedIn', '1')
+    localStorage.setItem('company.logo', 'data:image/png;base64,xxx')
+
+    expect(clearAuth0Cache()).toBe(2)
+    expect(localStorage.getItem('portal.demo.signedIn')).toBe('1')
+    expect(localStorage.getItem('company.logo')).not.toBeNull()
+    expect(localStorage.getItem(`${AUTH0_CACHE_PREFIX}::client::aud::scope`)).toBeNull()
+  })
+
+  it('ไม่พังเมื่อไม่มีแคชให้ลบ', () => {
+    expect(clearAuth0Cache()).toBe(0)
   })
 })

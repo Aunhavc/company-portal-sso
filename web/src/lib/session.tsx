@@ -1,9 +1,17 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 import { Auth0Provider, useAuth0 } from '@auth0/auth0-react'
 import { env, isLive } from './env'
-import { buildAuth0Options } from './auth0Config'
+import { buildAuth0Options, clearAuth0Cache } from './auth0Config'
 import { api } from './api'
-import { setAccessTokenProvider } from './supabase'
+import { setAccessTokenProvider, peekTokenError, clearTokenError } from './supabase'
 import { demoProfile } from './demoStore'
 import type { Profile } from './types'
 
@@ -21,6 +29,10 @@ export interface Session {
   error: string | null
   login: () => void
   logout: () => void
+  /** ล้างแคชโทเคนที่ค้างแล้วพาไปล็อกอินใหม่ — ใช้กู้เมื่อโทเคนใช้ต่อไม่ได้ */
+  relogin: () => void
+  /** true = สาเหตุที่พังคือขอโทเคนไม่ได้ กู้ได้ด้วยการล็อกอินใหม่ */
+  needsReauth: boolean
 }
 
 const SessionContext = createContext<Session | null>(null)
@@ -29,6 +41,24 @@ export function useSession(): Session {
   const ctx = useContext(SessionContext)
   if (!ctx) throw new Error('useSession ต้องอยู่ภายใน <SessionProvider>')
   return ctx
+}
+
+const AUTO_RECOVERY_KEY = 'portal.autoRecovered'
+
+function hasTriedAutoRecovery(): boolean {
+  try {
+    return sessionStorage.getItem(AUTO_RECOVERY_KEY) === '1'
+  } catch {
+    return true // แตะ sessionStorage ไม่ได้ = อย่ากู้อัตโนมัติ กันวนซ้ำไม่รู้จบ
+  }
+}
+
+function markAutoRecoveryTried(): void {
+  try {
+    sessionStorage.setItem(AUTO_RECOVERY_KEY, '1')
+  } catch {
+    /* ไม่เป็นไร ผู้ใช้ยังกดปุ่มเข้าสู่ระบบใหม่เองได้ */
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -48,6 +78,15 @@ function LiveSession({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [needsReauth, setNeedsReauth] = useState(false)
+
+  const relogin = useCallback(() => {
+    clearAuth0Cache()
+    clearTokenError()
+    void loginWithRedirect({
+      authorizationParams: env.auth0.connection ? { connection: env.auth0.connection } : undefined,
+    })
+  }, [loginWithRedirect])
 
   // ส่งวิธีขอ access token ให้ supabase client ใช้แนบไปกับทุก request
   useEffect(() => {
@@ -69,7 +108,18 @@ function LiveSession({ children }: { children: ReactNode }) {
         }
       })
       .catch((e: unknown) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e))
+        if (cancelled) return
+        setError(e instanceof Error ? e.message : String(e))
+
+        // แคชโทเคนค้างในสภาพที่ใช้ต่อไม่ได้ — ล้างแล้วพาไปล็อกอินใหม่ให้เอง
+        // กันวนซ้ำด้วยธงใน sessionStorage: กู้อัตโนมัติได้ครั้งเดียวต่อแท็บ
+        if (peekTokenError()) {
+          setNeedsReauth(true)
+          if (!hasTriedAutoRecovery()) {
+            markAutoRecoveryTried()
+            relogin()
+          }
+        }
       })
       .finally(() => {
         if (!cancelled) setSyncing(false)
@@ -77,7 +127,7 @@ function LiveSession({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [isAuthenticated, user])
+  }, [isAuthenticated, user, relogin])
 
   const value = useMemo<Session>(
     () => ({
@@ -93,9 +143,25 @@ function LiveSession({ children }: { children: ReactNode }) {
             ? { connection: env.auth0.connection }
             : undefined,
         }),
-      logout: () => void auth0Logout({ logoutParams: { returnTo: window.location.origin } }),
+      logout: () => {
+        clearAuth0Cache()
+        void auth0Logout({ logoutParams: { returnTo: window.location.origin } })
+      },
+      relogin,
+      needsReauth,
     }),
-    [authLoading, syncing, isAuthenticated, profile, error, authError, loginWithRedirect, auth0Logout],
+    [
+      authLoading,
+      syncing,
+      isAuthenticated,
+      profile,
+      error,
+      authError,
+      loginWithRedirect,
+      auth0Logout,
+      relogin,
+      needsReauth,
+    ],
   )
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>
@@ -127,6 +193,11 @@ function DemoSession({ children }: { children: ReactNode }) {
         localStorage.setItem(DEMO_KEY, '0')
         setSignedIn(false)
       },
+      relogin: () => {
+        localStorage.setItem(DEMO_KEY, '1')
+        setSignedIn(true)
+      },
+      needsReauth: false,
     }),
     [signedIn],
   )
