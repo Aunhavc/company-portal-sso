@@ -39,3 +39,7 @@ export function useAllApps() {
 export function useAnnouncements() {
   return useAsyncList<Announcement>(useCallback(() => api.listAnnouncements(), []))
 }
+
+export function useAllAnnouncements() {
+  return useAsyncList<Announcement>(useCallback(() => api.listAllAnnouncements(), []))
+}

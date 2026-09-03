@@ -48,6 +48,11 @@ export function Header() {
                 label="จัดการผู้ใช้"
                 active={location.pathname.startsWith('/admin/users')}
               />
+              <NavLink
+                to="/admin/announcements"
+                label="จัดการประกาศ"
+                active={location.pathname.startsWith('/admin/announcements')}
+              />
             </>
           ) : null}
         </nav>
@@ -114,6 +119,12 @@ export function Header() {
                     className="block px-4 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50 md:hidden"
                   >
                     จัดการผู้ใช้
+                  </Link>
+                  <Link
+                    to="/admin/announcements"
+                    className="block px-4 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50 md:hidden"
+                  >
+                    จัดการประกาศ
                   </Link>
                 </>
               ) : null}

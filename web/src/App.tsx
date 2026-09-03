@@ -3,6 +3,7 @@ import { Header } from './components/Header'
 import { Portal } from './pages/Portal'
 import { AdminApps } from './pages/AdminApps'
 import { AdminUsers } from './pages/AdminUsers'
+import { AdminAnnouncements } from './pages/AdminAnnouncements'
 import { Login } from './pages/Login'
 import { useSession } from './lib/session'
 import { resolveView } from './lib/access'
@@ -94,6 +95,10 @@ export default function App() {
           <Route
             path="/admin/users"
             element={isAdmin ? <AdminUsers /> : <Navigate to="/" replace />}
+          />
+          <Route
+            path="/admin/announcements"
+            element={isAdmin ? <AdminAnnouncements /> : <Navigate to="/" replace />}
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

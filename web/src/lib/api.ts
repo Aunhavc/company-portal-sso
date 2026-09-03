@@ -5,7 +5,15 @@
 import { isLive } from './env'
 import { requireSupabase } from './supabase'
 import { demoProfile, demoStore } from './demoStore'
-import type { Announcement, AppEntry, AppInput, Profile, Settings, UserRole } from './types'
+import type {
+  Announcement,
+  AnnouncementInput,
+  AppEntry,
+  AppInput,
+  Profile,
+  Settings,
+  UserRole,
+} from './types'
 
 /** เลือกทุกคอลัมน์ — โครงสร้างตาราง apps ตรงกับ AppEntry แบบหนึ่งต่อหนึ่ง */
 const APP_COLUMNS = '*'
@@ -92,6 +100,47 @@ export const api = {
       .limit(20)
     if (error) fail('โหลดประกาศไม่สำเร็จ', error)
     return (data ?? []) as unknown as Announcement[]
+  },
+
+  /** ทุกรายการรวมที่ไม่เผยแพร่ — ใช้กับหน้าจัดการประกาศ */
+  async listAllAnnouncements(): Promise<Announcement[]> {
+    if (!isLive) return demoStore.listAllAnnouncements()
+    const { data, error } = await requireSupabase()
+      .from('announcements')
+      .select('*')
+      .order('is_pinned', { ascending: false })
+      .order('published_at', { ascending: false })
+    if (error) fail('โหลดรายการประกาศไม่สำเร็จ', error)
+    return (data ?? []) as unknown as Announcement[]
+  },
+
+  async createAnnouncement(input: AnnouncementInput): Promise<Announcement> {
+    if (!isLive) return demoStore.createAnnouncement(input)
+    const { data, error } = await requireSupabase()
+      .from('announcements')
+      .insert(input)
+      .select('*')
+      .single()
+    if (error) fail('เพิ่มประกาศไม่สำเร็จ', error)
+    return data as unknown as Announcement
+  },
+
+  async updateAnnouncement(id: number, input: AnnouncementInput): Promise<Announcement> {
+    if (!isLive) return demoStore.updateAnnouncement(id, input)
+    const { data, error } = await requireSupabase()
+      .from('announcements')
+      .update(input)
+      .eq('id', id)
+      .select('*')
+      .single()
+    if (error) fail('บันทึกการแก้ไขประกาศไม่สำเร็จ', error)
+    return data as unknown as Announcement
+  },
+
+  async deleteAnnouncement(id: number): Promise<void> {
+    if (!isLive) return demoStore.deleteAnnouncement(id)
+    const { error } = await requireSupabase().from('announcements').delete().eq('id', id)
+    if (error) fail('ลบประกาศไม่สำเร็จ', error)
   },
 
   /** ค่าตั้งค่าองค์กร — อ่านได้โดยไม่ต้องล็อกอิน (หน้าล็อกอินใช้แสดงชื่อบริษัท) */

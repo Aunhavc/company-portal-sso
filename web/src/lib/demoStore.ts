@@ -5,7 +5,15 @@
  * เพื่อให้ทดลองเพิ่ม/แก้/ลบแอปได้จริงก่อนต่อระบบหลังบ้าน
  * โครงสร้างข้อมูลเหมือนกับตารางบน Supabase ทุกฟิลด์
  */
-import type { Announcement, AppEntry, AppInput, Profile, Settings, UserRole } from './types'
+import type {
+  Announcement,
+  AnnouncementInput,
+  AppEntry,
+  AppInput,
+  Profile,
+  Settings,
+  UserRole,
+} from './types'
 
 const KEY_APPS = 'portal.demo.apps.v1'
 const KEY_ANN = 'portal.demo.announcements.v1'
@@ -213,7 +221,8 @@ export const demoStore = {
     write(KEY_APPS, demoStore.listAllApps().filter((a) => a.id !== id))
   },
 
-  listAnnouncements(): Announcement[] {
+  /** ทุกรายการรวมที่ไม่เผยแพร่ — ใช้กับหน้าจัดการประกาศ */
+  listAllAnnouncements(): Announcement[] {
     const items = read<Announcement[]>(KEY_ANN, seedAnnouncements)
     if (!localStorage.getItem(KEY_ANN)) write(KEY_ANN, items)
     return [...items].sort(
@@ -221,6 +230,42 @@ export const demoStore = {
         Number(b.is_pinned) - Number(a.is_pinned) ||
         +new Date(b.published_at) - +new Date(a.published_at),
     )
+  },
+
+  /**
+   * เฉพาะรายการที่เผยแพร่แล้ว — ใช้กับหน้าหลักที่พนักงานเห็น
+   * ให้ผลตรงกับฝั่ง Supabase ที่กรอง published ด้วย query จริง
+   */
+  listAnnouncements(): Announcement[] {
+    return demoStore.listAllAnnouncements().filter((a) => a.published)
+  },
+
+  createAnnouncement(input: AnnouncementInput): Announcement {
+    // ต้องอ่านรายการทั้งหมดก่อนเขียนกลับ มิฉะนั้นประกาศที่ยังไม่เผยแพร่จะหายไป
+    const items = demoStore.listAllAnnouncements()
+    const entry: Announcement = {
+      ...input,
+      id: items.reduce((max, a) => Math.max(max, a.id), 0) + 1,
+      published_at: now(),
+      author_id: null,
+      created_at: now(),
+      updated_at: now(),
+    }
+    write(KEY_ANN, [...items, entry])
+    return entry
+  },
+
+  updateAnnouncement(id: number, input: AnnouncementInput): Announcement {
+    const items = demoStore.listAllAnnouncements()
+    const next = items.map((a) => (a.id === id ? { ...a, ...input, updated_at: now() } : a))
+    write(KEY_ANN, next)
+    const found = next.find((a) => a.id === id)
+    if (!found) throw new Error('ไม่พบประกาศที่ต้องการแก้ไข')
+    return found
+  },
+
+  deleteAnnouncement(id: number): void {
+    write(KEY_ANN, demoStore.listAllAnnouncements().filter((a) => a.id !== id))
   },
 
   getSettings(): Settings {

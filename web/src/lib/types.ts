@@ -59,6 +59,11 @@ export interface Announcement {
   updated_at: string
 }
 
+export type AnnouncementInput = Pick<
+  Announcement,
+  'title' | 'content' | 'category' | 'is_pinned' | 'published'
+>
+
 export type HealthState = 'unknown' | 'checking' | 'online' | 'offline' | 'blocked'
 
 export interface HealthResult {
