@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../lib/api'
-import type { Announcement, AppEntry } from '../lib/types'
+import type { Announcement, AnnouncementCategoryEntry, AppEntry } from '../lib/types'
 
 interface AsyncState<T> {
   data: T
@@ -42,4 +42,10 @@ export function useAnnouncements() {
 
 export function useAllAnnouncements() {
   return useAsyncList<Announcement>(useCallback(() => api.listAllAnnouncements(), []))
+}
+
+export function useAnnouncementCategories() {
+  return useAsyncList<AnnouncementCategoryEntry>(
+    useCallback(() => api.listAnnouncementCategories(), []),
+  )
 }

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Modal } from './Modal'
-import { CATEGORY_LABEL, cx } from '../lib/ui'
-import { ANNOUNCEMENT_CATEGORIES, validateAnnouncement } from '../lib/announcements'
-import type { Announcement, AnnouncementInput } from '../lib/types'
+import { cx } from '../lib/ui'
+import { sortCategories, toLocalInputValue, fromLocalInputValue, validateAnnouncement } from '../lib/announcements'
+import type { Announcement, AnnouncementCategoryEntry, AnnouncementInput } from '../lib/types'
 
 /**
  * ฟอร์มเพิ่ม/แก้ไขประกาศ — ใช้ตัวเดียวกันทั้งสองกรณี เหมือนรูปแบบของ AppFormModal
@@ -11,36 +11,48 @@ import type { Announcement, AnnouncementInput } from '../lib/types'
 const EMPTY: AnnouncementInput = {
   title: '',
   content: '',
-  category: 'Announcement',
+  category: '',
   is_pinned: false,
   published: true,
+  starts_at: null,
+  ends_at: null,
 }
 
 interface Props {
   open: boolean
   editing: Announcement | null
+  categories: AnnouncementCategoryEntry[]
   saving: boolean
   onClose: () => void
   onSubmit: (input: AnnouncementInput) => void
 }
 
-export function AnnouncementFormModal({ open, editing, saving, onClose, onSubmit }: Props) {
+export function AnnouncementFormModal({
+  open,
+  editing,
+  categories,
+  saving,
+  onClose,
+  onSubmit,
+}: Props) {
   const [form, setForm] = useState<AnnouncementInput>(EMPTY)
   /** ช่องที่ผู้ใช้แตะแล้ว — ใช้กันไม่ให้ขึ้นข้อความแดงตั้งแต่ยังไม่ได้กรอกอะไรเลย */
   const [touched, setTouched] = useState<Partial<Record<keyof AnnouncementInput, boolean>>>({})
   const [submitAttempted, setSubmitAttempted] = useState(false)
+
+  const sortedCategories = useMemo(() => sortCategories(categories), [categories])
 
   useEffect(() => {
     if (!open) return
     setTouched({})
     setSubmitAttempted(false)
     if (editing) {
-      const { title, content, category, is_pinned, published } = editing
-      setForm({ title, content, category, is_pinned, published })
+      const { title, content, category, is_pinned, published, starts_at, ends_at } = editing
+      setForm({ title, content, category, is_pinned, published, starts_at, ends_at })
     } else {
-      setForm(EMPTY)
+      setForm({ ...EMPTY, category: sortedCategories[0]?.key ?? '' })
     }
-  }, [open, editing])
+  }, [open, editing, sortedCategories])
 
   const set = <K extends keyof AnnouncementInput>(key: K, value: AnnouncementInput[K]) => {
     setTouched((t) => (t[key] ? t : { ...t, [key]: true }))
@@ -109,15 +121,20 @@ export function AnnouncementFormModal({ open, editing, saving, onClose, onSubmit
         </Field>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="หมวดหมู่">
+          <Field
+            label="หมวดหมู่"
+            error={errorOf('category')}
+            hint={sortedCategories.length === 0 ? 'ยังไม่มีหมวดหมู่ — เพิ่มก่อนที่การ์ดด้านบน' : undefined}
+          >
             <select
-              className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-900"
+              className="h-9 w-full rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-900"
               value={form.category}
-              onChange={(e) => set('category', e.target.value as AnnouncementInput['category'])}
+              disabled={sortedCategories.length === 0}
+              onChange={(e) => set('category', e.target.value)}
             >
-              {ANNOUNCEMENT_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {CATEGORY_LABEL[c]}
+              {sortedCategories.map((c) => (
+                <option key={c.key} value={c.key}>
+                  {c.label}
                 </option>
               ))}
             </select>
@@ -142,6 +159,29 @@ export function AnnouncementFormModal({ open, editing, saving, onClose, onSubmit
             </label>
           </div>
         </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="วันเริ่มแสดง" hint="ปล่อยว่าง = แสดงทันทีที่เผยแพร่">
+            <input
+              type="datetime-local"
+              className={inputCls}
+              value={toLocalInputValue(form.starts_at)}
+              onChange={(e) => set('starts_at', fromLocalInputValue(e.target.value))}
+            />
+          </Field>
+
+          <Field label="วันสิ้นสุด" error={errorOf('ends_at')} hint="ปล่อยว่าง = ไม่มีวันหมดอายุ">
+            <input
+              type="datetime-local"
+              className={inputCls}
+              value={toLocalInputValue(form.ends_at)}
+              onChange={(e) => set('ends_at', fromLocalInputValue(e.target.value))}
+            />
+          </Field>
+        </div>
+        <p className="-mt-3 text-xs text-slate-400">
+          พ้นวันสิ้นสุดแล้ว ประกาศจะหายไปจากหน้าหลักเองโดยอัตโนมัติ ไม่ต้องมาลบทีหลัง
+        </p>
       </div>
     </Modal>
   )
@@ -152,11 +192,13 @@ const inputCls =
 
 function Field({
   label,
+  hint,
   error,
   required,
   children,
 }: {
   label: string
+  hint?: string
   error?: string
   required?: boolean
   children: ReactNode
@@ -168,7 +210,11 @@ function Field({
         {required ? <span className="ml-0.5 text-rose-500">*</span> : null}
       </label>
       {children}
-      {error ? <p className="mt-1 text-xs text-rose-600">{error}</p> : null}
+      {error ? (
+        <p className="mt-1 text-xs text-rose-600">{error}</p>
+      ) : hint ? (
+        <p className="mt-1 text-xs text-slate-400">{hint}</p>
+      ) : null}
     </div>
   )
 }

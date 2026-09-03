@@ -1,13 +1,33 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { AnnouncementFormModal } from '../components/AnnouncementFormModal'
-import { useAllAnnouncements } from '../hooks/usePortalData'
+import { AnnouncementCategoryManager } from '../components/AnnouncementCategoryManager'
+import { useAllAnnouncements, useAnnouncementCategories } from '../hooks/usePortalData'
 import { api } from '../lib/api'
-import { draftCount, sortAnnouncements } from '../lib/announcements'
-import { CATEGORY_BADGE, CATEGORY_LABEL, cx, formatDate } from '../lib/ui'
+import {
+  ANNOUNCEMENT_STATUS_LABEL,
+  announcementStatus,
+  categoryMap,
+  draftCount,
+  sortAnnouncements,
+} from '../lib/announcements'
+import { CATEGORY_BADGE_BY_COLOR, cx, formatDate } from '../lib/ui'
 import type { Announcement, AnnouncementInput } from '../lib/types'
+
+const STATUS_DOT: Record<string, string> = {
+  draft: 'bg-slate-200 text-slate-600',
+  scheduled: 'bg-blue-50 text-blue-700 ring-1 ring-blue-200',
+  active: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',
+  expired: 'bg-rose-50 text-rose-500 ring-1 ring-rose-200',
+}
 
 export function AdminAnnouncements() {
   const { data: announcements, loading, error, reload } = useAllAnnouncements()
+  const {
+    data: categories,
+    reload: reloadCategories,
+    error: categoriesError,
+  } = useAnnouncementCategories()
+  const catMap = useMemo(() => categoryMap(categories), [categories])
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Announcement | null>(null)
   const [saving, setSaving] = useState(false)
@@ -102,6 +122,33 @@ export function AdminAnnouncements() {
         </p>
       ) : null}
 
+      {categoriesError ? (
+        <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+          {categoriesError}
+        </p>
+      ) : null}
+
+      <AnnouncementCategoryManager
+        categories={categories}
+        onCreate={async (key, label, color) => {
+          await api.createAnnouncementCategory(key, { label, color, sort_order: 100 })
+          await reloadCategories()
+        }}
+        onUpdate={async (key, label, color) => {
+          const existing = catMap[key]
+          await api.updateAnnouncementCategory(key, {
+            label,
+            color,
+            sort_order: existing?.sort_order ?? 100,
+          })
+          await reloadCategories()
+        }}
+        onDelete={async (key) => {
+          await api.deleteAnnouncementCategory(key)
+          await reloadCategories()
+        }}
+      />
+
       {loading ? (
         <p className="mt-8 text-sm text-slate-500">กำลังโหลด…</p>
       ) : rows.length === 0 ? (
@@ -125,23 +172,26 @@ export function AdminAnnouncements() {
                 item.published ? 'border-slate-200' : 'border-dashed border-slate-300 bg-slate-50/60',
               )}
             >
-              <div className="flex flex-wrap items-start gap-3">
+              <div className="flex flex-wrap items-start gap-2">
                 <span
                   className={cx(
                     'rounded-full px-2.5 py-1 text-xs font-semibold ring-1',
-                    CATEGORY_BADGE[item.category],
+                    CATEGORY_BADGE_BY_COLOR[catMap[item.category]?.color ?? 'slate'],
                   )}
                 >
-                  {CATEGORY_LABEL[item.category]}
+                  {catMap[item.category]?.label ?? item.category}
+                </span>
+                <span
+                  className={cx(
+                    'rounded-full px-2.5 py-1 text-xs font-semibold',
+                    STATUS_DOT[announcementStatus(item)],
+                  )}
+                >
+                  {ANNOUNCEMENT_STATUS_LABEL[announcementStatus(item)]}
                 </span>
                 {item.is_pinned ? (
                   <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
                     📌 ปักหมุด
-                  </span>
-                ) : null}
-                {!item.published ? (
-                  <span className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                    ฉบับร่าง
                   </span>
                 ) : null}
                 <div className="flex-1" />
@@ -162,7 +212,11 @@ export function AdminAnnouncements() {
               </div>
               <p className="mt-3 text-sm font-semibold text-slate-900">{item.title}</p>
               <p className="mt-1 line-clamp-2 text-sm text-slate-500">{item.content}</p>
-              <p className="mt-2 text-xs text-slate-400">{formatDate(item.published_at)}</p>
+              <p className="mt-2 text-xs text-slate-400">
+                {formatDate(item.published_at)}
+                {item.starts_at ? ` · เริ่ม ${formatDate(item.starts_at)}` : ''}
+                {item.ends_at ? ` · สิ้นสุด ${formatDate(item.ends_at)}` : ''}
+              </p>
             </div>
           ))}
         </div>
@@ -171,6 +225,7 @@ export function AdminAnnouncements() {
       <AnnouncementFormModal
         open={formOpen}
         editing={editing}
+        categories={categories}
         saving={saving}
         onClose={() => setFormOpen(false)}
         onSubmit={(input) => void submit(input)}

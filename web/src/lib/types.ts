@@ -44,7 +44,8 @@ export interface AppEntry {
 /** payload ที่ใช้ตอนสร้าง/แก้ไขแอปจากหน้า Admin */
 export type AppInput = Omit<AppEntry, 'id' | 'created_at' | 'updated_at'>
 
-export type AnnouncementCategory = 'General' | 'HR' | 'IT Alert' | 'Announcement'
+/** รหัสอ้างอิงหมวดหมู่ — คีย์ของ announcement_categories ผู้ดูแลเพิ่ม/แก้ไข/ลบเองได้ */
+export type AnnouncementCategory = string
 
 export interface Announcement {
   id: number
@@ -53,6 +54,10 @@ export interface Announcement {
   category: AnnouncementCategory
   is_pinned: boolean
   published: boolean
+  /** ไม่มีค่า = แสดงได้ทันทีที่เผยแพร่ */
+  starts_at: string | null
+  /** ไม่มีค่า = ไม่มีวันหมดอายุ */
+  ends_at: string | null
   published_at: string
   author_id: string | null
   created_at: string
@@ -61,8 +66,19 @@ export interface Announcement {
 
 export type AnnouncementInput = Pick<
   Announcement,
-  'title' | 'content' | 'category' | 'is_pinned' | 'published'
+  'title' | 'content' | 'category' | 'is_pinned' | 'published' | 'starts_at' | 'ends_at'
 >
+
+export interface AnnouncementCategoryEntry {
+  key: string
+  label: string
+  color: AccentColor
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export type AnnouncementCategoryInput = Pick<AnnouncementCategoryEntry, 'label' | 'color' | 'sort_order'>
 
 export type HealthState = 'unknown' | 'checking' | 'online' | 'offline' | 'blocked'
 

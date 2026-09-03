@@ -3,7 +3,7 @@ import { AppGrid } from '../components/AppGrid'
 import { AnnouncementFeed } from '../components/AnnouncementFeed'
 import { VpnHelpModal } from '../components/VpnHelpModal'
 import { DemoBanner } from '../components/DemoBanner'
-import { useAnnouncements, useApps } from '../hooks/usePortalData'
+import { useAnnouncementCategories, useAnnouncements, useApps } from '../hooks/usePortalData'
 import { useHealthProbes } from '../hooks/useHealthProbes'
 import { useSession } from '../lib/session'
 import type { AppEntry } from '../lib/types'
@@ -12,6 +12,7 @@ export function Portal() {
   const { profile, isAdmin } = useSession()
   const apps = useApps()
   const announcements = useAnnouncements()
+  const categories = useAnnouncementCategories()
   const { results: health, refresh } = useHealthProbes(apps.data)
   const [vpnApp, setVpnApp] = useState<AppEntry | null>(null)
 
@@ -76,6 +77,7 @@ export function Portal() {
           <aside className="lg:sticky lg:top-24 lg:self-start">
             <AnnouncementFeed
               items={announcements.data}
+              categories={categories.data}
               loading={announcements.loading}
               error={announcements.error}
             />

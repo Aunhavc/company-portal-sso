@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { demoStore } from '../demoStore'
-import type { AnnouncementInput } from '../types'
+import type { AnnouncementCategoryInput, AnnouncementInput } from '../types'
 
 const base: AnnouncementInput = {
   title: 'ประกาศทดสอบ',
@@ -8,6 +8,8 @@ const base: AnnouncementInput = {
   category: 'General',
   is_pinned: false,
   published: true,
+  starts_at: null,
+  ends_at: null,
 }
 
 beforeEach(() => localStorage.clear())
@@ -69,5 +71,74 @@ describe('demoStore ประกาศ', () => {
 
   it('updateAnnouncement โยน error เมื่อไม่พบประกาศ', () => {
     expect(() => demoStore.updateAnnouncement(99999, base)).toThrow()
+  })
+
+  // ด่านกันบั๊กเดียวกับ published: listAnnouncements() ต้องกรองตามกำหนดเวลาด้วย
+  // ให้ผลตรงกับ RLS policy announcements_select_published ฝั่ง Supabase จริง
+  it('listAnnouncements ไม่แสดงประกาศที่ยังไม่ถึงวันเริ่ม', () => {
+    const future = new Date(Date.now() + 86_400_000).toISOString()
+    demoStore.createAnnouncement({ ...base, title: 'ยังไม่ถึงเวลา', starts_at: future })
+    expect(demoStore.listAnnouncements().map((a) => a.title)).not.toContain('ยังไม่ถึงเวลา')
+    expect(demoStore.listAllAnnouncements().map((a) => a.title)).toContain('ยังไม่ถึงเวลา')
+  })
+
+  it('listAnnouncements ไม่แสดงประกาศที่พ้นวันสิ้นสุดแล้ว', () => {
+    const past = new Date(Date.now() - 86_400_000).toISOString()
+    demoStore.createAnnouncement({ ...base, title: 'หมดอายุแล้ว', ends_at: past })
+    expect(demoStore.listAnnouncements().map((a) => a.title)).not.toContain('หมดอายุแล้ว')
+    expect(demoStore.listAllAnnouncements().map((a) => a.title)).toContain('หมดอายุแล้ว')
+  })
+
+  it('listAnnouncements แสดงประกาศที่อยู่ในช่วงเวลาปกติ', () => {
+    const past = new Date(Date.now() - 86_400_000).toISOString()
+    const future = new Date(Date.now() + 86_400_000).toISOString()
+    demoStore.createAnnouncement({ ...base, title: 'กำลังแสดง', starts_at: past, ends_at: future })
+    expect(demoStore.listAnnouncements().map((a) => a.title)).toContain('กำลังแสดง')
+  })
+})
+
+describe('demoStore หมวดหมู่ประกาศ', () => {
+  const catInput: AnnouncementCategoryInput = { label: 'ทดสอบ', color: 'blue', sort_order: 100 }
+
+  it('มีหมวดหมู่เริ่มต้นครบ 4 รายการตรงกับ migration 0007', () => {
+    const keys = demoStore.listAnnouncementCategories().map((c) => c.key)
+    expect(keys.sort()).toEqual(['Announcement', 'General', 'HR', 'IT Alert'].sort())
+  })
+
+  it('createAnnouncementCategory เพิ่มหมวดหมู่ใหม่ได้', () => {
+    demoStore.createAnnouncementCategory('custom', catInput)
+    expect(demoStore.listAnnouncementCategories().map((c) => c.key)).toContain('custom')
+  })
+
+  it('createAnnouncementCategory ปฏิเสธ key ที่ซ้ำ', () => {
+    demoStore.createAnnouncementCategory('custom', catInput)
+    expect(() => demoStore.createAnnouncementCategory('custom', catInput)).toThrow()
+  })
+
+  it('updateAnnouncementCategory แก้ label/color ได้โดยไม่กระทบ key', () => {
+    demoStore.createAnnouncementCategory('custom', catInput)
+    const updated = demoStore.updateAnnouncementCategory('custom', {
+      label: 'เปลี่ยนชื่อแล้ว',
+      color: 'rose',
+      sort_order: 5,
+    })
+    expect(updated.key).toBe('custom')
+    expect(updated.label).toBe('เปลี่ยนชื่อแล้ว')
+    expect(updated.color).toBe('rose')
+  })
+
+  // ด่านสำคัญที่สุดของฟีเจอร์นี้: ลบหมวดหมู่ที่มีประกาศอ้างอิงอยู่ไม่ได้
+  // จำลองพฤติกรรมเดียวกับ foreign key on delete restrict ฝั่ง Postgres จริง
+  it('deleteAnnouncementCategory ลบไม่ได้ถ้ายังมีประกาศใช้อยู่', () => {
+    demoStore.createAnnouncementCategory('custom', catInput)
+    demoStore.createAnnouncement({ ...base, category: 'custom' })
+    expect(() => demoStore.deleteAnnouncementCategory('custom')).toThrow()
+    expect(demoStore.listAnnouncementCategories().map((c) => c.key)).toContain('custom')
+  })
+
+  it('deleteAnnouncementCategory ลบได้ปกติเมื่อไม่มีประกาศใช้', () => {
+    demoStore.createAnnouncementCategory('unused', catInput)
+    demoStore.deleteAnnouncementCategory('unused')
+    expect(demoStore.listAnnouncementCategories().map((c) => c.key)).not.toContain('unused')
   })
 })

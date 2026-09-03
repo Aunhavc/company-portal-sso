@@ -1,4 +1,4 @@
-import type { AccentColor, AnnouncementCategory } from './types'
+import type { AccentColor } from './types'
 
 export function cx(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(' ')
@@ -27,18 +27,19 @@ export const ACCENT_SWATCH: Record<AccentColor, string> = {
   rose: 'bg-rose-500', violet: 'bg-violet-500', cyan: 'bg-cyan-500', orange: 'bg-orange-500',
 }
 
-export const CATEGORY_BADGE: Record<AnnouncementCategory, string> = {
-  'IT Alert':     'bg-rose-50 text-rose-700 ring-rose-200',
-  'HR':           'bg-violet-50 text-violet-700 ring-violet-200',
-  'Announcement': 'bg-blue-50 text-blue-700 ring-blue-200',
-  'General':      'bg-slate-100 text-slate-700 ring-slate-200',
-}
-
-export const CATEGORY_LABEL: Record<AnnouncementCategory, string> = {
-  'IT Alert': 'แจ้งเตือน IT',
-  'HR': 'ฝ่ายบุคคล',
-  'Announcement': 'ประกาศ',
-  'General': 'ทั่วไป',
+/**
+ * ป้ายหมวดหมู่ประกาศ — อิงจากสีเน้นที่ผู้ดูแลเลือกไว้ตอนสร้างหมวดหมู่
+ * (เขียนคลาสเต็มทุกตัว เพราะ Tailwind สแกนหาคลาสจากซอร์ส ต่อสตริงไม่ได้)
+ */
+export const CATEGORY_BADGE_BY_COLOR: Record<AccentColor, string> = {
+  slate:   'bg-slate-100 text-slate-700 ring-slate-200',
+  blue:    'bg-blue-50 text-blue-700 ring-blue-200',
+  emerald: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  amber:   'bg-amber-50 text-amber-700 ring-amber-200',
+  rose:    'bg-rose-50 text-rose-700 ring-rose-200',
+  violet:  'bg-violet-50 text-violet-700 ring-violet-200',
+  cyan:    'bg-cyan-50 text-cyan-700 ring-cyan-200',
+  orange:  'bg-orange-50 text-orange-700 ring-orange-200',
 }
 
 const thaiDate = new Intl.DateTimeFormat('th-TH', {

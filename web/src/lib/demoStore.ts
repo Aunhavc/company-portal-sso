@@ -5,8 +5,11 @@
  * เพื่อให้ทดลองเพิ่ม/แก้/ลบแอปได้จริงก่อนต่อระบบหลังบ้าน
  * โครงสร้างข้อมูลเหมือนกับตารางบน Supabase ทุกฟิลด์
  */
+import { categoryInUse, isVisibleNow } from './announcements'
 import type {
   Announcement,
+  AnnouncementCategoryEntry,
+  AnnouncementCategoryInput,
   AnnouncementInput,
   AppEntry,
   AppInput,
@@ -17,6 +20,7 @@ import type {
 
 const KEY_APPS = 'portal.demo.apps.v1'
 const KEY_ANN = 'portal.demo.announcements.v1'
+const KEY_CAT = 'portal.demo.announcement_categories.v1'
 const KEY_SET = 'portal.demo.settings.v1'
 
 const now = () => new Date().toISOString()
@@ -122,6 +126,7 @@ const seedAnnouncements: Announcement[] = [
       'ระหว่างช่วงเวลาดังกล่าว พนักงานจะไม่สามารถเข้าใช้งานระบบ Intranet (ERP, WMS) ได้ชั่วคราว ' +
       'ส่วนระบบบนคลาวด์ยังใช้งานได้ตามปกติ\n\nหากมีข้อสงสัยกรุณาติดต่อ IT Helpdesk ต่อ 1234',
     category: 'IT Alert', is_pinned: true, published: true,
+    starts_at: null, ends_at: null,
     published_at: now(), author_id: null, created_at: now(), updated_at: now(),
   },
   {
@@ -132,6 +137,7 @@ const seedAnnouncements: Announcement[] = [
       'วงเงินความคุ้มครองปรับเพิ่มขึ้นจากปีก่อน กรุณาตรวจสอบรายละเอียดและยืนยันข้อมูลผู้รับผลประโยชน์ ' +
       'ภายในวันที่ 30 กันยายน 2569',
     category: 'HR', is_pinned: false, published: true,
+    starts_at: null, ends_at: null,
     published_at: now(), author_id: null, created_at: now(), updated_at: now(),
   },
   {
@@ -142,8 +148,17 @@ const seedAnnouncements: Announcement[] = [
       'ทั้งระบบบนคลาวด์และระบบภายในองค์กร\n\n' +
       'ไม่ต้องจำรหัสผ่านหลายชุดอีกต่อไป และเมื่อเข้าสู่ระบบครั้งแรกแล้ว การเปิดระบบอื่นจะไม่ถามรหัสผ่านซ้ำ',
     category: 'Announcement', is_pinned: false, published: true,
+    starts_at: null, ends_at: null,
     published_at: now(), author_id: null, created_at: now(), updated_at: now(),
   },
+]
+
+/** ตรงกับ 4 หมวดหมู่เริ่มต้นใน migration 0007 */
+const seedCategories: AnnouncementCategoryEntry[] = [
+  { key: 'Announcement', label: 'ประกาศ', color: 'blue', sort_order: 10, created_at: now(), updated_at: now() },
+  { key: 'IT Alert', label: 'แจ้งเตือน IT', color: 'rose', sort_order: 20, created_at: now(), updated_at: now() },
+  { key: 'HR', label: 'ฝ่ายบุคคล', color: 'violet', sort_order: 30, created_at: now(), updated_at: now() },
+  { key: 'General', label: 'ทั่วไป', color: 'slate', sort_order: 40, created_at: now(), updated_at: now() },
 ]
 
 const KEY_PROFILES = 'portal.demo.profiles'
@@ -233,11 +248,11 @@ export const demoStore = {
   },
 
   /**
-   * เฉพาะรายการที่เผยแพร่แล้ว — ใช้กับหน้าหลักที่พนักงานเห็น
-   * ให้ผลตรงกับฝั่ง Supabase ที่กรอง published ด้วย query จริง
+   * เฉพาะรายการที่เผยแพร่แล้วและอยู่ในกำหนดเวลา — ใช้กับหน้าหลักที่พนักงานเห็น
+   * ให้ผลตรงกับฝั่ง Supabase ที่กรองด้วย RLS (announcements_select_published) จริง
    */
   listAnnouncements(): Announcement[] {
-    return demoStore.listAllAnnouncements().filter((a) => a.published)
+    return demoStore.listAllAnnouncements().filter((a) => isVisibleNow(a))
   },
 
   createAnnouncement(input: AnnouncementInput): Announcement {
@@ -266,6 +281,50 @@ export const demoStore = {
 
   deleteAnnouncement(id: number): void {
     write(KEY_ANN, demoStore.listAllAnnouncements().filter((a) => a.id !== id))
+  },
+
+  listAnnouncementCategories(): AnnouncementCategoryEntry[] {
+    const items = read<AnnouncementCategoryEntry[]>(KEY_CAT, seedCategories)
+    if (!localStorage.getItem(KEY_CAT)) write(KEY_CAT, items)
+    return items
+  },
+
+  createAnnouncementCategory(
+    key: string,
+    input: AnnouncementCategoryInput,
+  ): AnnouncementCategoryEntry {
+    const items = demoStore.listAnnouncementCategories()
+    if (items.some((c) => c.key === key)) {
+      throw new Error(`มีหมวดหมู่รหัส "${key}" อยู่แล้ว`)
+    }
+    const entry: AnnouncementCategoryEntry = {
+      key,
+      ...input,
+      created_at: now(),
+      updated_at: now(),
+    }
+    write(KEY_CAT, [...items, entry])
+    return entry
+  },
+
+  updateAnnouncementCategory(
+    key: string,
+    input: AnnouncementCategoryInput,
+  ): AnnouncementCategoryEntry {
+    const items = demoStore.listAnnouncementCategories()
+    const next = items.map((c) => (c.key === key ? { ...c, ...input, updated_at: now() } : c))
+    write(KEY_CAT, next)
+    const found = next.find((c) => c.key === key)
+    if (!found) throw new Error('ไม่พบหมวดหมู่ที่ต้องการแก้ไข')
+    return found
+  },
+
+  /** จำลองพฤติกรรมเดียวกับ foreign key on delete restrict ฝั่ง Postgres */
+  deleteAnnouncementCategory(key: string): void {
+    if (categoryInUse(key, demoStore.listAllAnnouncements())) {
+      throw new Error('ลบไม่ได้ — ยังมีประกาศที่ใช้หมวดหมู่นี้อยู่ ย้ายประกาศไปหมวดอื่นก่อนแล้วค่อยลบ')
+    }
+    write(KEY_CAT, demoStore.listAnnouncementCategories().filter((c) => c.key !== key))
   },
 
   getSettings(): Settings {

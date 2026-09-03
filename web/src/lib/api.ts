@@ -7,6 +7,8 @@ import { requireSupabase } from './supabase'
 import { demoProfile, demoStore } from './demoStore'
 import type {
   Announcement,
+  AnnouncementCategoryEntry,
+  AnnouncementCategoryInput,
   AnnouncementInput,
   AppEntry,
   AppInput,
@@ -20,6 +22,17 @@ const APP_COLUMNS = '*'
 
 function fail(context: string, error: { message: string } | null): never {
   throw new Error(`${context}: ${error?.message ?? 'unknown error'}`)
+}
+
+/**
+ * ลบหมวดหมู่ที่ยังมีประกาศอ้างอิงอยู่ — Postgres บล็อกด้วย foreign key (รหัส 23503)
+ * แปลเป็นข้อความไทยที่บอกทางแก้ แทนข้อความ error ดิบของฐานข้อมูล
+ */
+function failDeleteCategory(error: { message: string; code?: string } | null): never {
+  if (error?.code === '23503') {
+    throw new Error('ลบไม่ได้ — ยังมีประกาศที่ใช้หมวดหมู่นี้อยู่ ย้ายประกาศไปหมวดอื่นก่อนแล้วค่อยลบ')
+  }
+  fail('ลบหมวดหมู่ไม่สำเร็จ', error)
 }
 
 export const api = {
@@ -141,6 +154,52 @@ export const api = {
     if (!isLive) return demoStore.deleteAnnouncement(id)
     const { error } = await requireSupabase().from('announcements').delete().eq('id', id)
     if (error) fail('ลบประกาศไม่สำเร็จ', error)
+  },
+
+  async listAnnouncementCategories(): Promise<AnnouncementCategoryEntry[]> {
+    if (!isLive) return demoStore.listAnnouncementCategories()
+    const { data, error } = await requireSupabase()
+      .from('announcement_categories')
+      .select('*')
+      .order('sort_order', { ascending: true })
+    if (error) fail('โหลดหมวดหมู่ประกาศไม่สำเร็จ', error)
+    return (data ?? []) as unknown as AnnouncementCategoryEntry[]
+  },
+
+  /** key ถูกกำหนดครั้งเดียวตอนสร้าง ไม่ให้แก้ทีหลัง เพื่อไม่ให้ต้องตามแก้การอ้างอิงที่อื่น */
+  async createAnnouncementCategory(
+    key: string,
+    input: AnnouncementCategoryInput,
+  ): Promise<AnnouncementCategoryEntry> {
+    if (!isLive) return demoStore.createAnnouncementCategory(key, input)
+    const { data, error } = await requireSupabase()
+      .from('announcement_categories')
+      .insert({ key, ...input })
+      .select('*')
+      .single()
+    if (error) fail('เพิ่มหมวดหมู่ไม่สำเร็จ', error)
+    return data as unknown as AnnouncementCategoryEntry
+  },
+
+  async updateAnnouncementCategory(
+    key: string,
+    input: AnnouncementCategoryInput,
+  ): Promise<AnnouncementCategoryEntry> {
+    if (!isLive) return demoStore.updateAnnouncementCategory(key, input)
+    const { data, error } = await requireSupabase()
+      .from('announcement_categories')
+      .update(input)
+      .eq('key', key)
+      .select('*')
+      .single()
+    if (error) fail('แก้ไขหมวดหมู่ไม่สำเร็จ', error)
+    return data as unknown as AnnouncementCategoryEntry
+  },
+
+  async deleteAnnouncementCategory(key: string): Promise<void> {
+    if (!isLive) return demoStore.deleteAnnouncementCategory(key)
+    const { error } = await requireSupabase().from('announcement_categories').delete().eq('key', key)
+    if (error) failDeleteCategory(error)
   },
 
   /** ค่าตั้งค่าองค์กร — อ่านได้โดยไม่ต้องล็อกอิน (หน้าล็อกอินใช้แสดงชื่อบริษัท) */

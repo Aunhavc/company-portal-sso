@@ -1,16 +1,21 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Modal } from './Modal'
-import type { Announcement } from '../lib/types'
-import { CATEGORY_BADGE, CATEGORY_LABEL, cx, formatDate } from '../lib/ui'
+import { categoryMap } from '../lib/announcements'
+import type { Announcement, AnnouncementCategoryEntry } from '../lib/types'
+import { CATEGORY_BADGE_BY_COLOR, cx, formatDate } from '../lib/ui'
 
 interface Props {
   items: Announcement[]
+  categories: AnnouncementCategoryEntry[]
   loading: boolean
   error: string | null
 }
 
-export function AnnouncementFeed({ items, loading, error }: Props) {
+export function AnnouncementFeed({ items, categories, loading, error }: Props) {
   const [active, setActive] = useState<Announcement | null>(null)
+  const catMap = useMemo(() => categoryMap(categories), [categories])
+  const labelOf = (key: string) => catMap[key]?.label ?? key
+  const badgeOf = (key: string) => CATEGORY_BADGE_BY_COLOR[catMap[key]?.color ?? 'slate']
 
   return (
     <section aria-labelledby="ann-heading">
@@ -46,10 +51,10 @@ export function AnnouncementFeed({ items, loading, error }: Props) {
                   <span
                     className={cx(
                       'rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset',
-                      CATEGORY_BADGE[item.category],
+                      badgeOf(item.category),
                     )}
                   >
-                    {CATEGORY_LABEL[item.category]}
+                    {labelOf(item.category)}
                   </span>
                   {item.is_pinned ? (
                     <span className="text-[11px] font-semibold text-amber-600">📌 ปักหมุด</span>
@@ -76,10 +81,10 @@ export function AnnouncementFeed({ items, loading, error }: Props) {
               <span
                 className={cx(
                   'rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset',
-                  CATEGORY_BADGE[active.category],
+                  badgeOf(active.category),
                 )}
               >
-                {CATEGORY_LABEL[active.category]}
+                {labelOf(active.category)}
               </span>
               {formatDate(active.published_at)}
             </span>
