@@ -5,7 +5,7 @@
 import { isLive } from './env'
 import { requireSupabase } from './supabase'
 import { demoProfile, demoStore } from './demoStore'
-import type { Announcement, AppEntry, AppInput, Profile, Settings } from './types'
+import type { Announcement, AppEntry, AppInput, Profile, Settings, UserRole } from './types'
 
 /** เลือกทุกคอลัมน์ — โครงสร้างตาราง apps ตรงกับ AppEntry แบบหนึ่งต่อหนึ่ง */
 const APP_COLUMNS = '*'
@@ -107,6 +107,30 @@ export const api = {
       helpdesk_phone: map.helpdesk_phone ?? '',
       helpdesk_email: map.helpdesk_email ?? '',
     }
+  },
+
+  /** รายชื่อผู้ใช้ทั้งหมด — RLS อนุญาตเฉพาะผู้ดูแลระบบ */
+  async listProfiles(): Promise<Profile[]> {
+    if (!isLive) return demoStore.listProfiles()
+    const { data, error } = await requireSupabase()
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (error) fail('โหลดรายชื่อผู้ใช้ไม่สำเร็จ', error)
+    return (data ?? []) as unknown as Profile[]
+  },
+
+  /** อนุมัติ / ระงับ / เปลี่ยนสิทธิ์ — ฝั่ง Postgres มี trigger กันการยกระดับตัวเองอยู่แล้ว */
+  async updateProfile(id: string, change: { role?: UserRole; is_active?: boolean }): Promise<Profile> {
+    if (!isLive) return demoStore.updateProfile(id, change)
+    const { data, error } = await requireSupabase()
+      .from('profiles')
+      .update(change)
+      .eq('id', id)
+      .select('*')
+      .single()
+    if (error) fail('บันทึกข้อมูลผู้ใช้ไม่สำเร็จ', error)
+    return data as unknown as Profile
   },
 
   async saveSettings(next: Settings): Promise<Settings> {

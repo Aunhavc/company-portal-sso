@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { Header } from './components/Header'
 import { Portal } from './pages/Portal'
 import { AdminApps } from './pages/AdminApps'
+import { AdminUsers } from './pages/AdminUsers'
 import { Login } from './pages/Login'
 import { useSession } from './lib/session'
 import { resolveView } from './lib/access'
@@ -90,6 +91,10 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Portal />} />
           <Route path="/admin/apps" element={isAdmin ? <AdminApps /> : <Navigate to="/" replace />} />
+          <Route
+            path="/admin/users"
+            element={isAdmin ? <AdminUsers /> : <Navigate to="/" replace />}
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

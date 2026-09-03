@@ -5,7 +5,7 @@
  * เพื่อให้ทดลองเพิ่ม/แก้/ลบแอปได้จริงก่อนต่อระบบหลังบ้าน
  * โครงสร้างข้อมูลเหมือนกับตารางบน Supabase ทุกฟิลด์
  */
-import type { Announcement, AppEntry, AppInput, Profile, Settings } from './types'
+import type { Announcement, AppEntry, AppInput, Profile, Settings, UserRole } from './types'
 
 const KEY_APPS = 'portal.demo.apps.v1'
 const KEY_ANN = 'portal.demo.announcements.v1'
@@ -138,7 +138,40 @@ const seedAnnouncements: Announcement[] = [
   },
 ]
 
+const KEY_PROFILES = 'portal.demo.profiles'
+
+const seedProfiles: Profile[] = [
+  demoProfile,
+  {
+    id: 'google-oauth2|demo-pending',
+    email: 'newcomer@example.com',
+    full_name: 'พนักงานใหม่ รออนุมัติ',
+    avatar_url: null,
+    role: 'user',
+    department: null,
+    is_active: false,
+    last_login_at: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+]
+
 export const demoStore = {
+  listProfiles(): Profile[] {
+    const rows = read<Profile[]>(KEY_PROFILES, seedProfiles)
+    if (!localStorage.getItem(KEY_PROFILES)) write(KEY_PROFILES, rows)
+    return rows
+  },
+
+  updateProfile(id: string, change: { role?: UserRole; is_active?: boolean }): Profile {
+    const rows = demoStore.listProfiles()
+    const next = rows.map((p) => (p.id === id ? { ...p, ...change, updated_at: now() } : p))
+    write(KEY_PROFILES, next)
+    const found = next.find((p) => p.id === id)
+    if (!found) throw new Error('ไม่พบผู้ใช้ที่ต้องการแก้ไข')
+    return found
+  },
+
   /** ทุกรายการรวมที่ปิดใช้งาน — ใช้กับหน้าจัดการแอป */
   listAllApps(): AppEntry[] {
     const apps = read<AppEntry[]>(KEY_APPS, seedApps)

@@ -37,11 +37,18 @@ export function Header() {
         <nav className="ml-2 hidden items-center gap-1 md:flex">
           <NavLink to="/" label="หน้าหลัก" active={location.pathname === '/'} />
           {isAdmin ? (
-            <NavLink
-              to="/admin/apps"
-              label="จัดการแอป"
-              active={location.pathname.startsWith('/admin')}
-            />
+            <>
+              <NavLink
+                to="/admin/apps"
+                label="จัดการแอป"
+                active={location.pathname.startsWith('/admin/apps')}
+              />
+              <NavLink
+                to="/admin/users"
+                label="จัดการผู้ใช้"
+                active={location.pathname.startsWith('/admin/users')}
+              />
+            </>
           ) : null}
         </nav>
 
@@ -95,12 +102,20 @@ export function Header() {
                 </span>
               </div>
               {isAdmin ? (
-                <Link
-                  to="/admin/apps"
-                  className="block px-4 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50 md:hidden"
-                >
-                  จัดการแอป
-                </Link>
+                <>
+                  <Link
+                    to="/admin/apps"
+                    className="block px-4 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50 md:hidden"
+                  >
+                    จัดการแอป
+                  </Link>
+                  <Link
+                    to="/admin/users"
+                    className="block px-4 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50 md:hidden"
+                  >
+                    จัดการผู้ใช้
+                  </Link>
+                </>
               ) : null}
               <button
                 type="button"
