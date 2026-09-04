@@ -3,11 +3,11 @@
  * (หัวข้อ ตาราง บล็อกโค้ด กล่องข้อความเน้น หน้าปก header/footer)
  */
 import {
-  AlignmentType, BorderStyle, Footer, Header, HeadingLevel, ImageRun, PageBreak,
-  PageNumber, Paragraph, ShadingType, Table, TableCell, TableRow, TextRun,
+  AlignmentType, BorderStyle, Document, Footer, Header, HeadingLevel, ImageRun, PageBreak,
+  PageNumber, Packer, Paragraph, ShadingType, Table, TableCell, TableOfContents, TableRow, TextRun,
   VerticalAlign, WidthType, convertMillimetersToTwip,
 } from 'docx'
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
@@ -338,4 +338,35 @@ export const pageProperties = {
       left: convertMillimetersToTwip(25), right: convertMillimetersToTwip(20),
     },
   },
+}
+
+// ---------------------------------------------------------------------------
+// ทางลัดสำหรับคู่มือที่ไม่มีภาพประกอบ (SSO-OPS-004 / SSO-OPS-005)
+// ---------------------------------------------------------------------------
+
+/** ชื่อย่อของ coverPage */
+export const cover = coverPage
+
+/** หน้าสารบัญ (Word ต้องกด F9 เพื่อเติมเลขหน้า) */
+export const toc = () => [
+  h1('สารบัญ'),
+  new TableOfContents('สารบัญ', { hyperlink: true, headingStyleRange: '1-3' }),
+  spacer(200),
+  cap('หมายเหตุ: หากสารบัญไม่แสดงตัวเลขหน้า ให้คลิกขวาที่สารบัญแล้วเลือก "Update Field" → "Update entire table"'),
+  pageBreak(),
+]
+
+/** ประกอบเอกสาร A4 พร้อม header/footer แล้วเขียนไฟล์ */
+export async function build(DOC, children, outUrl) {
+  const doc = new Document({
+    creator: DOC.owner,
+    title: DOC.title,
+    description: DOC.subtitle,
+    ...docDefaults,
+    sections: [{ properties: pageProperties, ...chrome(DOC), children }],
+  })
+  const buffer = await Packer.toBuffer(doc)
+  writeFileSync(outUrl, buffer)
+  console.log(`สร้างเอกสารแล้ว: ${fileURLToPath(outUrl)}`)
+  console.log(`ขนาด: ${(buffer.length / 1024).toFixed(1)} KB`)
 }

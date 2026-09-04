@@ -7,11 +7,15 @@
   "scripts": {
     "build": "node build-manual.mjs",
     "build:user": "node build-user-guide.mjs",
-    "build:all": "node build-manual.mjs && node build-user-guide.mjs",
+    "build:admin-intranet": "node build-admin-intranet-guide.mjs",
+    "build:admin-internet": "node build-admin-internet-guide.mjs",
+    "build:all": "node build-manual.mjs && node build-user-guide.mjs && node build-admin-intranet-guide.mjs && node build-admin-internet-guide.mjs",
+    "verify": "node verify-docx.mjs \"../คู่มือผู้ดูแลระบบ - ผูก Intranet App to Company Portal.docx\" \"../คู่มือผู้ดูแลระบบ - ผูก Internet App (Dep.App) to Company Portal.docx\"",
     "capture": "node capture-screens.mjs"
   },
   "dependencies": {
     "docx": "^9.5.1",
+    "jszip": "^3.10.1",
     "puppeteer-core": "^25.9.0"
   }
 }
