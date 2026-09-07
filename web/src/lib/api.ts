@@ -4,6 +4,7 @@
  */
 import { isLive } from './env'
 import { requireSupabase } from './supabase'
+import { retryOnClockSkew } from './clockSkew'
 import { demoProfile, demoStore } from './demoStore'
 import type {
   Announcement,
@@ -41,10 +42,13 @@ export const api = {
   /** สร้าง/อัปเดตโปรไฟล์จาก JWT — ฝั่งเซิร์ฟเวอร์อ่าน sub/email เอง ไม่เชื่อ client */
   async syncProfile(fullName?: string | null, avatarUrl?: string | null): Promise<Profile> {
     if (!isLive) return demoProfile
-    const { data, error } = await requireSupabase().rpc('sync_profile', {
-      p_full_name: fullName ?? null,
-      p_avatar_url: avatarUrl ?? null,
-    })
+    // เรียกครั้งแรกทันทีหลัง Auth0 ออกโทเคน จึงเป็นจุดที่โดน "JWT issued at future" — ลองซ้ำให้เอง
+    const { data, error } = await retryOnClockSkew(() =>
+      requireSupabase().rpc('sync_profile', {
+        p_full_name: fullName ?? null,
+        p_avatar_url: avatarUrl ?? null,
+      }),
+    )
     if (error) fail('ซิงค์โปรไฟล์ไม่สำเร็จ', error)
     return data as unknown as Profile
   },

@@ -7,6 +7,7 @@ import { AdminAnnouncements } from './pages/AdminAnnouncements'
 import { Login } from './pages/Login'
 import { useSession } from './lib/session'
 import { resolveView } from './lib/access'
+import { isClockSkewError } from './lib/clockSkew'
 
 export default function App() {
   const { isLoading, isAuthenticated, profile, isAdmin, error, relogin, needsReauth, logout } =
@@ -74,12 +75,19 @@ export default function App() {
               </button>
             </div>
           ) : null}
+          {isClockSkewError({ message: error ?? '' }) ? (
+            <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm leading-relaxed text-sky-900">
+              นาฬิกาของผู้ให้บริการ (Auth0 / Supabase) คลาดเคลื่อนกันชั่วคราว ระบบลองซ้ำให้แล้วแต่ยังไม่ผ่าน
+              — ไม่ใช่ปัญหาการตั้งค่า กรุณารอสักครู่แล้วกด <strong>ออกจากระบบ → เข้าสู่ระบบใหม่</strong>
+            </div>
+          ) : (
           <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-slate-600">
             <li>เปิด Supabase → Authentication → Third Party Auth → เพิ่ม Auth0 domain แล้วหรือยัง</li>
             <li>รัน <code className="rounded bg-slate-100 px-1">supabase/migrations/0001_init.sql</code> ครบหรือยัง</li>
             <li>ตั้ง <code className="rounded bg-slate-100 px-1">VITE_AUTH0_AUDIENCE</code> ให้ตรงกับ API ใน Auth0 หรือยัง</li>
             <li>เพิ่ม Post-Login Action ที่ใส่ claim <code className="rounded bg-slate-100 px-1">role = authenticated</code> หรือยัง</li>
           </ul>
+          )}
         </div>
       </div>
     )
