@@ -6,7 +6,7 @@ import { DemoBanner } from '../components/DemoBanner'
 import { useAnnouncementCategories, useAnnouncements, useApps } from '../hooks/usePortalData'
 import { useHealthProbes } from '../hooks/useHealthProbes'
 import { useSession } from '../lib/session'
-import { gateBeforeOpen, rememberProceed } from '../lib/intranetGate'
+import { gateBeforeOpen } from '../lib/intranetGate'
 import type { AppEntry } from '../lib/types'
 
 export function Portal() {
@@ -40,10 +40,9 @@ export function Portal() {
     [health, launch],
   )
 
-  // ผู้ใช้ยืนยันว่าอยู่ในเครือข่ายแล้ว → จำไว้ทั้งแท็บ จะได้ไม่ถามซ้ำทุกคลิก
+  // ผู้ใช้ยืนยันว่าอยู่ในเครือข่ายแล้ว → เปิดให้ (ไม่จำคำตอบ — เครือข่ายเปลี่ยนได้ทุกเมื่อ)
   const proceed = useCallback(
     (app: AppEntry) => {
-      rememberProceed(app)
       setVpnApp(null)
       launch(app)
     },

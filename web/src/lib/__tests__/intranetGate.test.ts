@@ -1,9 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { gateBeforeOpen, rememberProceed, forgetProceeds } from '../intranetGate'
+import { describe, it, expect } from 'vitest'
+import { gateBeforeOpen } from '../intranetGate'
 import type { AppEntry, HealthResult } from '../types'
 
 // เหตุการณ์จริง 7 ก.ย. 2569: osTicket (intranet, HTTP, ไม่มี health_url) คลิกจากนอก LAN
 // แล้ว "เงียบ" — พอร์ทัลเปิดแท็บไปเลยโดยไม่บอกว่าต้องต่อ VPN
+// และรอบสอง: จำคำตอบ "เปิดเลย" จากตอนอยู่ LAN ไว้ พอสลับไป Hotspot ก็เปิดตรงอีก
+// → ต้องถามทุกครั้ง ไม่ว่าเหตุผลใด ถ้ายืนยันไม่ได้ว่าถึง
 const app = (over: Partial<AppEntry> = {}): AppEntry => ({
   id: 7,
   slug: 'osticket',
@@ -25,8 +27,6 @@ const app = (over: Partial<AppEntry> = {}): AppEntry => ({
   ...over,
 })
 const h = (state: HealthResult['state']): HealthResult => ({ state, checkedAt: 1 })
-
-beforeEach(() => forgetProceeds())
 
 describe('gateBeforeOpen', () => {
   it('แอปอินเทอร์เน็ต → เปิดได้เลยเสมอ', () => {
@@ -50,37 +50,8 @@ describe('gateBeforeOpen', () => {
     expect(gateBeforeOpen(app(), h('checking'))).toBe('ask')
   })
 
-  it('ผู้ใช้กด "เปิดต่อไปเลย" แล้ว → ครั้งถัดไปในแท็บเดียวกันไม่ถามซ้ำ (เฉพาะแอปนั้น)', () => {
-    rememberProceed(app())
-    expect(gateBeforeOpen(app(), undefined)).toBe('open')
-    expect(gateBeforeOpen(app({ id: 8, slug: 'wms' }), undefined)).toBe('ask')
-  })
-
-  it('จำคำตอบ "เปิดต่อไปเลย" ไม่ทับกรณีที่ตรวจแล้วรู้ชัดว่าไม่ถึง', () => {
-    rememberProceed(app())
-    expect(gateBeforeOpen(app(), h('offline'))).toBe('ask')
-  })
-
-  // vitest.setup.ts ให้ sessionStorage แบบ writable — สลับตัวจริงออกชั่วคราวได้
-  const g = globalThis as unknown as { sessionStorage: Storage }
-
-  it('ทำงานได้แม้ sessionStorage โยน error (โหมดส่วนตัวบางเบราว์เซอร์) — จำในหน่วยความจำแทน', () => {
-    const original = g.sessionStorage
-    const boom = () => {
-      throw new Error('SecurityError')
-    }
-    g.sessionStorage = { getItem: boom, setItem: boom, removeItem: boom } as unknown as Storage
-    try {
-      expect(() => rememberProceed(app())).not.toThrow()
-      expect(gateBeforeOpen(app(), undefined)).toBe('open')
-    } finally {
-      g.sessionStorage = original
-    }
-  })
-
-  it('จำข้ามการโหลดหน้าใหม่ในแท็บเดิมผ่าน sessionStorage', () => {
-    rememberProceed(app())
-    forgetProceeds({ memoryOnly: true }) // จำลองโหลดหน้าใหม่: หน่วยความจำหาย แต่ sessionStorage ยังอยู่
-    expect(gateBeforeOpen(app(), undefined)).toBe('open')
+  it('ถามซ้ำทุกครั้ง — ไม่จำคำตอบเดิม เพราะผู้ใช้อาจสลับเครือข่ายไปแล้ว', () => {
+    expect(gateBeforeOpen(app(), undefined)).toBe('ask')
+    expect(gateBeforeOpen(app(), undefined)).toBe('ask')
   })
 })
