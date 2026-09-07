@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { HelpdeskNote, VpnSteps } from '../components/VpnSteps'
 import { useApps } from '../hooks/usePortalData'
+import { outsideMessage } from '../lib/launchMessage'
 import { checkCompanyNetwork } from '../lib/networkCheckClient'
 import { parseHostList, type NetworkCheckResult } from '../lib/networkCheck'
 import { useSession } from '../lib/session'
@@ -38,6 +39,9 @@ export function LaunchApp() {
   const [phase, setPhase] = useState<Phase>('loading')
   const [result, setResult] = useState<NetworkCheckResult | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  // นับครั้งที่ตรวจ + IP รอบก่อน — รอบสองขึ้นไปต้องบอกชัดว่า "ตรวจแล้ว ยังไม่พบ VPN" ไม่ใช่หน้าเดิมเงียบ ๆ
+  const [attempts, setAttempts] = useState(0)
+  const [previousIp, setPreviousIp] = useState<string | null>(null)
 
   const app = apps.data.find((a) => a.slug === slug) ?? null
   const hostsConfigured = parseHostList(settings.company_network_hosts).length > 0
@@ -51,6 +55,8 @@ export function LaunchApp() {
     async (a: AppEntry) => {
       setPhase('checking')
       setErrorMsg(null)
+      setAttempts((n) => n + 1)
+      setPreviousIp(result?.ip ?? null)
       try {
         const r = await checkCompanyNetwork(settings.company_network_hosts)
         setResult(r)
@@ -61,8 +67,10 @@ export function LaunchApp() {
         setPhase('error')
       }
     },
-    [settings.company_network_hosts, go],
+    [settings.company_network_hosts, go, result?.ip],
   )
+
+  const outside = outsideMessage(attempts, result?.ip ?? null, previousIp)
 
   useEffect(() => {
     if (apps.loading) return
@@ -113,18 +121,9 @@ export function LaunchApp() {
           <Notice
             tone="amber"
             eyebrow={app.name}
-            title="คุณอยู่นอกเครือข่ายบริษัท — ต้องเชื่อมต่อ VPN ก่อนใช้งาน"
-            body={
-              <>
-                แอปนี้อยู่บนเครือข่ายภายใน (Intranet / LAN) เครื่องของคุณกำลังออกอินเทอร์เน็ตจากนอกสำนักงาน
-                {result?.ip ? (
-                  <>
-                    {' '}(IP ของคุณ: <code className="rounded bg-white/70 px-1">{result.ip}</code>)
-                  </>
-                ) : null}{' '}
-                กรุณาต่อ VPN ตามขั้นตอนด้านล่าง แล้วกดตรวจสอบอีกครั้ง
-              </>
-            }
+            title={outside.title}
+            body={outside.body}
+            highlight={outside.retried}
             app={app}
             isAdmin={isAdmin}
             onRetry={() => void check(app)}
@@ -190,6 +189,7 @@ function Notice({
   onRetry,
   result,
   proceedForAll = false,
+  highlight = false,
 }: {
   tone: 'amber' | 'rose' | 'blue'
   eyebrow: string
@@ -201,6 +201,8 @@ function Notice({
   result: NetworkCheckResult | null
   /** ไม่มีทางตรวจได้ → ทุกคนต้องยืนยันเอง (ไม่ใช่เฉพาะ admin) */
   proceedForAll?: boolean
+  /** ผลตรวจซ้ำ — เน้นให้เห็นว่าหน้าเปลี่ยนแล้ว ไม่ใช่ปุ่มไม่ทำงาน */
+  highlight?: boolean
 }) {
   const tones = {
     amber: 'border-amber-200 bg-amber-50 text-amber-900',
@@ -212,8 +214,19 @@ function Notice({
   return (
     <div>
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{eyebrow}</p>
-      <h1 className="mt-1 text-xl font-bold tracking-tight text-slate-900">{title}</h1>
-      <div className={cx('mt-4 rounded-xl border p-4 text-sm leading-relaxed', tones[tone])}>{body}</div>
+      <h1 className={cx('mt-1 text-xl font-bold tracking-tight', highlight ? 'text-amber-700' : 'text-slate-900')}>
+        {title}
+      </h1>
+      <div
+        role={highlight ? 'alert' : undefined}
+        className={cx(
+          'mt-4 rounded-xl border p-4 text-sm leading-relaxed',
+          tones[tone],
+          highlight && 'border-amber-400 ring-2 ring-amber-300',
+        )}
+      >
+        {body}
+      </div>
 
       <div className="mt-6">
         <VpnSteps />
