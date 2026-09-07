@@ -10,12 +10,14 @@
  */
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { resolve4, resolve6 } from 'node:dns/promises'
+// ต้องมี .js — package.json เป็น "type": "module" Vercel จึงรันไฟล์นี้เป็น ESM
+// ซึ่ง Node ไม่ยอมรับ import แบบไม่มีนามสกุล (ERR_MODULE_NOT_FOUND → FUNCTION_INVOCATION_FAILED)
 import {
   clientIpFromHeaders,
   decideInside,
   parseHostList,
   type NetworkCheckResult,
-} from '../src/lib/networkCheck'
+} from '../src/lib/networkCheck.js'
 
 const RESOLVE_TIMEOUT_MS = 4000
 
