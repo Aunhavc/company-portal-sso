@@ -6,6 +6,7 @@ import { DemoBanner } from '../components/DemoBanner'
 import { useAnnouncementCategories, useAnnouncements, useApps } from '../hooks/usePortalData'
 import { useHealthProbes } from '../hooks/useHealthProbes'
 import { useSession } from '../lib/session'
+import { gateBeforeOpen, rememberProceed } from '../lib/intranetGate'
 import type { AppEntry } from '../lib/types'
 
 export function Portal() {
@@ -16,25 +17,37 @@ export function Portal() {
   const { results: health, refresh } = useHealthProbes(apps.data)
   const [vpnApp, setVpnApp] = useState<AppEntry | null>(null)
 
+  const launch = useCallback((app: AppEntry) => {
+    // มี sso_url = ให้ปลายทางทำ SSO handshake กับ Auth0 ก่อน แล้วค่อยเข้าหน้างาน
+    const target = app.sso_url ?? app.url
+    if (app.open_in_new_tab) {
+      window.open(target, '_blank', 'noopener,noreferrer')
+    } else {
+      window.location.href = target
+    }
+  }, [])
+
   const openApp = useCallback(
     (app: AppEntry) => {
-      const state = health[app.id]?.state
-
-      // แอปภายในที่ตรวจแล้วเข้าไม่ถึง → อธิบายวิธีต่อ VPN แทนการเปิดหน้าเปล่า
-      if (app.network === 'intranet' && (state === 'offline' || state === 'blocked')) {
+      // แอปภายในที่ยืนยันไม่ได้ว่าถึง (ไม่ถึง / ถูกบล็อก / ไม่มี health check)
+      // → บอกก่อนว่าต้องอยู่ในเครือข่ายบริษัทหรือต่อ VPN ห้ามเปิดแท็บเปล่าไปเงียบ ๆ
+      if (gateBeforeOpen(app, health[app.id]) === 'ask') {
         setVpnApp(app)
         return
       }
-
-      // มี sso_url = ให้ปลายทางทำ SSO handshake กับ Auth0 ก่อน แล้วค่อยเข้าหน้างาน
-      const target = app.sso_url ?? app.url
-      if (app.open_in_new_tab) {
-        window.open(target, '_blank', 'noopener,noreferrer')
-      } else {
-        window.location.href = target
-      }
+      launch(app)
     },
-    [health],
+    [health, launch],
+  )
+
+  // ผู้ใช้ยืนยันว่าอยู่ในเครือข่ายแล้ว → จำไว้ทั้งแท็บ จะได้ไม่ถามซ้ำทุกคลิก
+  const proceed = useCallback(
+    (app: AppEntry) => {
+      rememberProceed(app)
+      setVpnApp(null)
+      launch(app)
+    },
+    [launch],
   )
 
   const greeting = (() => {
@@ -90,6 +103,7 @@ export function Portal() {
         health={vpnApp ? health[vpnApp.id] : undefined}
         onClose={() => setVpnApp(null)}
         onRetry={() => void refresh()}
+        onProceed={proceed}
       />
     </>
   )
