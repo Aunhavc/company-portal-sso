@@ -98,6 +98,8 @@ export interface Settings {
   portal_tagline: string
   helpdesk_phone: string
   helpdesk_email: string
+  /** ชื่อ DynDNS / IP สาธารณะของสำนักงานและ VPN (คั่นด้วย ,) — ว่าง = ไม่ตรวจเครือข่ายก่อนเปิดแอปภายใน */
+  company_network_hosts: string
 }
 
 export const SETTING_LABELS: Record<keyof Settings, string> = {
@@ -106,4 +108,5 @@ export const SETTING_LABELS: Record<keyof Settings, string> = {
   portal_tagline: 'คำบรรยายใต้ชื่อ',
   helpdesk_phone: 'เบอร์ติดต่อ IT Helpdesk',
   helpdesk_email: 'อีเมล IT Helpdesk',
+  company_network_hosts: 'ชื่อ DynDNS / IP สาธารณะของบริษัท',
 }

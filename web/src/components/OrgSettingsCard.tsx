@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useSettings, BrandMark } from '../lib/settings'
 import { SETTING_LABELS, type Settings } from '../lib/types'
 import { cx } from '../lib/ui'
+import { parseHostList } from '../lib/networkCheck'
 
 /**
  * การ์ดตั้งค่าองค์กรบนหน้าจัดการแอป
@@ -126,6 +127,20 @@ export function OrgSettingsCard() {
           <input className={inputCls} value={form.helpdesk_email}
             onChange={(e) => set('helpdesk_email', e.target.value)} placeholder="helpdesk@company.com" />
         </Field>
+      </div>
+
+      <div className="mt-4">
+        <Field label={SETTING_LABELS.company_network_hosts}>
+          <input className={inputCls} value={form.company_network_hosts}
+            onChange={(e) => set('company_network_hosts', e.target.value)} placeholder="เช่น somjai.dyndns.org, 203.0.113.7" />
+        </Field>
+        <p className="mt-1.5 text-xs leading-relaxed text-slate-400">
+          ใช้ตรวจก่อนเปิดแอปภายใน (Intranet): ถ้า IP สาธารณะของผู้ใช้ตรงกับที่ชื่อเหล่านี้ชี้อยู่ = อยู่ในสำนักงาน/ต่อ VPN แล้ว
+          จึงเปิดให้ · ไม่ตรง = แสดงหน้าแจ้งให้ต่อ VPN แทนหน้า error ของเบราว์เซอร์ · เว้นว่าง = ไม่ตรวจ
+        </p>
+        {form.company_network_hosts.trim() && parseHostList(form.company_network_hosts).length === 0 ? (
+          <p className="mt-1 text-xs text-rose-600">ไม่พบชื่อโฮสต์หรือ IP ที่ใช้ได้ — ใส่ชื่อเต็มเช่น office.dyndns.org</p>
+        ) : null}
       </div>
 
       <div className="mt-4">

@@ -17,6 +17,7 @@ const FALLBACK: Settings = {
   portal_tagline: 'ศูนย์รวมระบบงานพนักงาน',
   helpdesk_phone: '1234',
   helpdesk_email: 'helpdesk@company.com',
+  company_network_hosts: '',
 }
 
 interface Ctx {
@@ -48,6 +49,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         portal_tagline: s.portal_tagline || FALLBACK.portal_tagline,
         helpdesk_phone: s.helpdesk_phone || FALLBACK.helpdesk_phone,
         helpdesk_email: s.helpdesk_email || FALLBACK.helpdesk_email,
+        company_network_hosts: s.company_network_hosts ?? '',
       })
     } catch {
       setSettings(FALLBACK)

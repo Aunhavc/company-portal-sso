@@ -218,6 +218,7 @@ export const api = {
       portal_tagline: map.portal_tagline ?? '',
       helpdesk_phone: map.helpdesk_phone ?? '',
       helpdesk_email: map.helpdesk_email ?? '',
+      company_network_hosts: map.company_network_hosts ?? '',
     }
   },
 

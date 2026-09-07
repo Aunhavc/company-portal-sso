@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Header } from './components/Header'
 import { Portal } from './pages/Portal'
+import { LaunchApp } from './pages/LaunchApp'
 import { AdminApps } from './pages/AdminApps'
 import { AdminUsers } from './pages/AdminUsers'
 import { AdminAnnouncements } from './pages/AdminAnnouncements'
@@ -99,6 +100,7 @@ export default function App() {
       <main>
         <Routes>
           <Route path="/" element={<Portal />} />
+          <Route path="/launch/:slug" element={<LaunchApp />} />
           <Route path="/admin/apps" element={isAdmin ? <AdminApps /> : <Navigate to="/" replace />} />
           <Route
             path="/admin/users"

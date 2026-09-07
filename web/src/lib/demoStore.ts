@@ -334,6 +334,7 @@ export const demoStore = {
       portal_tagline: 'ศูนย์รวมระบบงานพนักงาน',
       helpdesk_phone: '1234',
       helpdesk_email: 'helpdesk@company.com',
+      company_network_hosts: '',
     })
   },
 
