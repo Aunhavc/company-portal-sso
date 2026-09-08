@@ -27,13 +27,16 @@ npm run dev
 ### หน้าหลัก (`/`)
 - การ์ดระบบงานจัดกลุ่มตามหมวดหมู่ · ค้นหา + กรอง คลาวด์/ภายใน
 - ป้ายสถานะสด: 🟢 เชื่อมต่อแล้ว (+latency) · ⚪ ยังไม่ได้ต่อ VPN · 🟡 ตรวจสอบไม่ได้
-- คลิกระบบภายในตอนไม่ได้ต่อ VPN → หน้าต่างสอนต่อ VPN ทีละขั้น
+- คลิกระบบภายใน → ผ่านหน้ากลาง `/launch/:slug` ตรวจก่อนว่าเครื่องอยู่ในเครือข่ายบริษัทหรือไม่
+  อยู่ในเครือข่าย = เข้าแอปทันที · อยู่นอกเครือข่าย = หน้าแจ้งให้ต่อ VPN พร้อมขั้นตอนและปุ่มตรวจซ้ำ
+  **ไม่มีทางที่ผู้ใช้จะเจอหน้า error ของเบราว์เซอร์** (ดู `docs/NETWORK-CHECK-AND-VPN.md`)
 - ฟีดประกาศข่าวสารจากฐานข้อมูล คลิกอ่านเต็มได้
 
 ### หน้าจัดการแอป (`/admin/apps` — เฉพาะ admin)
 - **เพิ่มแอปใหม่ได้ไม่จำกัด ทั้งฝั่งอินเทอร์เน็ตและอินทราเน็ต โดยไม่ต้องแก้โค้ดหรือ deploy ใหม่**
 - ฟอร์มมีตัวอย่างการ์ดสดขณะพิมพ์ · ปุ่มทดสอบการเชื่อมต่อ · เลือกไอคอน/สี
 - สวิตช์เปิด-ปิดแอป · กำหนดว่าใครเห็นได้ (บังคับที่ระดับฐานข้อมูลด้วย ไม่ใช่แค่ซ่อน UI)
+- การ์ด **ตั้งค่าองค์กร** — ช่อง "ชื่อ DynDNS / IP สาธารณะของบริษัท" ที่ใช้ตรวจว่าผู้ใช้อยู่ในเครือข่ายหรือไม่
 
 ---
 
@@ -42,14 +45,16 @@ npm run dev
 ```
 SSO/
 ├── docs/
-│   ├── PLAN.md            แผน implement + ตารางจุดที่แก้จากเอกสารต้นฉบับ
-│   ├── AUTH0-SETUP.md     ค่าที่ต้องกรอกใน Auth0 ทีละช่อง
-│   ├── ADD-NEW-APP.md     วิธีเพิ่มแอปใหม่ (สำหรับผู้ดูแลระบบ)
-│   └── TEST-PLAN.md       เช็กลิสต์ทดสอบก่อน Go-Live
+│   ├── PLAN.md                    แผน implement + ตารางจุดที่แก้จากเอกสารต้นฉบับ
+│   ├── AUTH0-SETUP.md             ค่าที่ต้องกรอกใน Auth0 ทีละช่อง
+│   ├── ADD-NEW-APP.md             วิธีเพิ่มแอปใหม่ (สำหรับผู้ดูแลระบบ)
+│   ├── NETWORK-CHECK-AND-VPN.md   การตรวจเครือข่ายด้วย DynDNS + ตั้งค่า SSL VPN full-tunnel
+│   └── TEST-PLAN.md               เช็กลิสต์ทดสอบก่อน Go-Live
 ├── web/                   Portal SPA — Vite + React 19 + TS + Tailwind 4 → Vercel
-│   ├── src/lib/           env · session (Auth0/demo) · api · supabase · demoStore
-│   ├── src/components/    AppCard · AppGrid · AppFormModal · VpnHelpModal · …
-│   └── src/pages/         Portal · AdminApps · Login
+│   ├── api/               network-check — Vercel Function ตรวจ IP ผู้เรียกเทียบ DynDNS บริษัท
+│   ├── src/lib/           env · session (Auth0/demo) · api · supabase · networkCheck · launchMessage
+│   ├── src/components/    AppCard · AppGrid · AppFormModal · VpnSteps · OrgSettingsCard · …
+│   └── src/pages/         Portal · AdminApps · LaunchApp · Login
 ├── supabase/migrations/   0001 schema+RLS+RPC · 0002 seed · 0003 ตั้ง admin
 └── php-intranet/          ping.php · auth-callback.php · auth-middleware.php · logout.php
 ```
@@ -78,6 +83,11 @@ SSO/
 > วิธีแก้ที่แนะนำ: DNS สาธารณะชี้ private IP + Let's Encrypt แบบ DNS-01 challenge
 
 > **Vercel Hobby ห้ามใช้เชิงพาณิชย์** — ต้องขึ้นแผน Pro ตั้งแต่วันแรก
+
+> **VPN ต้องเป็น full-tunnel เท่านั้น**
+> ระหว่างที่ระบบภายในยังเป็น HTTP พอร์ทัลตรวจการเข้าถึงตรง ๆ ไม่ได้ จึงตัดสินจาก **IP สาธารณะ**
+> ถ้า VPN เป็น split-tunnel เครื่องจะยังออกอินเทอร์เน็ตด้วย IP ของบ้าน → พอร์ทัลถือว่าอยู่นอกเครือข่าย
+> ต้องลงทะเบียนชื่อ DynDNS ของ **ทุก WAN** ที่บริษัทใช้ออกเน็ต — ดู `docs/NETWORK-CHECK-AND-VPN.md`
 
 ---
 
