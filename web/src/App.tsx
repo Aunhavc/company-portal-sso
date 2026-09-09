@@ -8,7 +8,7 @@ import { AdminAnnouncements } from './pages/AdminAnnouncements'
 import { Login } from './pages/Login'
 import { useSession } from './lib/session'
 import { resolveView } from './lib/access'
-import { isClockSkewError } from './lib/clockSkew'
+import { syncErrorAdvice } from './lib/syncError'
 
 export default function App() {
   const { isLoading, isAuthenticated, profile, isAdmin, error, relogin, needsReauth, logout } =
@@ -47,16 +47,18 @@ export default function App() {
     )
   }
 
-  // ล็อกอินผ่านแล้วแต่ซิงค์โปรไฟล์ไม่สำเร็จ — ส่วนใหญ่คือ Supabase Third-Party Auth ยังไม่ได้ตั้ง
+  // ล็อกอินผ่านแล้วแต่ซิงค์โปรไฟล์ไม่สำเร็จ
+  // สาเหตุมีได้หลายแบบ จึงต้องบอกให้ตรงเรื่อง และ**ต้องมีปุ่มออกจากระบบเสมอ**
+  // (9 ก.ย. 2569 ผู้ใช้ติดค้างหน้านี้ออกไม่ได้ เพราะโทเคนเดิมยังอยู่ใน localStorage)
   if (view === 'sync-error') {
+    const advice = syncErrorAdvice(error)
     return (
       <div className="grid min-h-screen place-items-center bg-slate-50 px-4">
         <div className="max-w-lg rounded-2xl border border-rose-200 bg-white p-6 shadow-sm">
-          <h1 className="text-lg font-bold text-slate-900">เชื่อมต่อฐานข้อมูลไม่สำเร็จ</h1>
-          <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            ยืนยันตัวตนกับ Auth0 สำเร็จแล้ว แต่ยังดึงโปรไฟล์จาก Supabase ไม่ได้
-          </p>
-          {error ? (
+          <h1 className="text-lg font-bold text-slate-900">{advice.title}</h1>
+          <p className="mt-2 text-sm leading-relaxed text-slate-600">{advice.body}</p>
+          {/* ข้อความดิบเป็นของผู้ดูแลระบบ — เมื่อรู้สาเหตุจริงแล้วไม่ต้องเอามารบกวนผู้ใช้ */}
+          {advice.showSetupChecklist && error ? (
             <pre className="mt-3 overflow-x-auto rounded-lg bg-slate-900 p-3 text-xs text-slate-100">
               {error}
             </pre>
@@ -76,19 +78,27 @@ export default function App() {
               </button>
             </div>
           ) : null}
-          {isClockSkewError({ message: error ?? '' }) ? (
-            <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm leading-relaxed text-sky-900">
-              นาฬิกาของผู้ให้บริการ (Auth0 / Supabase) คลาดเคลื่อนกันชั่วคราว ระบบลองซ้ำให้แล้วแต่ยังไม่ผ่าน
-              — ไม่ใช่ปัญหาการตั้งค่า กรุณารอสักครู่แล้วกด <strong>ออกจากระบบ → เข้าสู่ระบบใหม่</strong>
-            </div>
-          ) : (
-          <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-slate-600">
-            <li>เปิด Supabase → Authentication → Third Party Auth → เพิ่ม Auth0 domain แล้วหรือยัง</li>
-            <li>รัน <code className="rounded bg-slate-100 px-1">supabase/migrations/0001_init.sql</code> ครบหรือยัง</li>
-            <li>ตั้ง <code className="rounded bg-slate-100 px-1">VITE_AUTH0_AUDIENCE</code> ให้ตรงกับ API ใน Auth0 หรือยัง</li>
-            <li>เพิ่ม Post-Login Action ที่ใส่ claim <code className="rounded bg-slate-100 px-1">role = authenticated</code> หรือยัง</li>
-          </ul>
-          )}
+          {advice.showSetupChecklist ? (
+            <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-slate-600">
+              <li>เปิด Supabase → Authentication → Third Party Auth → เพิ่ม Auth0 domain แล้วหรือยัง</li>
+              <li>รัน <code className="rounded bg-slate-100 px-1">supabase/migrations/0001_init.sql</code> ครบหรือยัง</li>
+              <li>ตั้ง <code className="rounded bg-slate-100 px-1">VITE_AUTH0_AUDIENCE</code> ให้ตรงกับ API ใน Auth0 หรือยัง</li>
+              <li>เพิ่ม Post-Login Action ที่ใส่ claim <code className="rounded bg-slate-100 px-1">role = authenticated</code> หรือยัง</li>
+            </ul>
+          ) : null}
+
+          {/* ทางออกที่ต้องมีเสมอ — logout() ล้างโทเคนใน localStorage ก่อนแล้วค่อยออกจาก Auth0
+              ถ้าไม่มีปุ่มนี้ ผู้ใช้จะกลับเข้ามาเจอหน้าเดิมซ้ำไม่รู้จบ */}
+          <button
+            type="button"
+            onClick={logout}
+            className="mt-5 w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
+          >
+            ออกจากระบบ แล้วเข้าใหม่
+          </button>
+          <p className="mt-3 text-center text-xs text-slate-400">
+            ยังไม่หาย ติดต่อ IT Helpdesk ต่อ 1234
+          </p>
         </div>
       </div>
     )
