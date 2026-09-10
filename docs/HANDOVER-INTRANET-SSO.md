@@ -26,6 +26,14 @@
 | Company Portal | https://company-portal-sso.vercel.app | Vercel | Auth0 (AD / Google) |
 | SAP on Web | `http://sv000itd24/Sale/SAPWeb/` | `SV000ITD24` (192.168.0.24) | Windows Auth → โค้ดแอปอ่าน `AUTH_USER` เอง |
 | osTicket | `http://osticket.somjaiad01.local/login.php` | `SV000ITDZZ` (192.168.0.250) | Windows Auth → ปลั๊กอิน HTTP Passthru |
+| AntBase | `https://app.antbase.co/login` | คลาวด์ (ผู้พัฒนาภายนอก) | **ยังไม่มี SSO** — ล็อกอินที่แอปเอง |
+| Issue Hub | `https://somjai-issue-hub.lovable.app` | คลาวด์ (ผู้พัฒนาภายนอก) | **ยังไม่มี SSO** |
+| Cashflow | `https://somjai-cashflow-live.pattanansap.chatgpt.site` | คลาวด์ (ผู้พัฒนาภายนอก) | **ยังไม่มี SSO** |
+| Asset Registry | `https://asset-registry-hub.vercel.app/auth` | คลาวด์ (ผู้พัฒนาภายนอก) | **ยังไม่มี SSO** |
+
+แอปคลาวด์ 4 ตัวลงทะเบียนเป็นการ์ดแล้ว 10 ก.ย. 2569 (เห็นเฉพาะผู้ดูแลระบบก่อน)
+ยังทำ SSO ไม่ได้เพราะการตั้งค่าอยู่ในบัญชี Supabase ของผู้พัฒนา และผู้พัฒนาแจ้งว่าอยู่นอกขอบเขตงาน
+คิดค่าใช้จ่ายเพิ่ม — **ระหว่างนี้ต้องพึ่ง `OFFBOARDING-CHECKLIST.md` ข้อ 6 เมื่อมีพนักงานลาออก**
 
 ค่าคงที่อื่นที่ต้องรู้
 
