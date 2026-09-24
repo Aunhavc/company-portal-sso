@@ -199,10 +199,90 @@ http://192.168.0.127:6875/login?prevent_auto_init=true
 ### ข้อจำกัดที่ต้องรู้
 
 - ตัวแปร `LDAP_*` ยังคาอยู่ใน compose แต่ **ไม่มีผลแล้ว** เพราะ `AUTH_METHOD=oidc` — จงใจเก็บไว้เผื่อย้อนกลับ
-- **การ sync กลุ่ม AD → บทบาทของ BookStack หยุดทำงาน** เพราะ Auth0 ไม่ได้ส่ง claim กลุ่มมาด้วย
-  ผู้ใช้เดิมยังคงบทบาทเดิมไว้ แต่ **ผู้ใช้ใหม่จะได้บทบาทเริ่มต้นและต้องตั้งมือ**
-  ถ้าต้องการให้อัตโนมัติ ต้องเพิ่ม claim กลุ่มใน Auth0 Action แล้วตั้ง `OIDC_USER_TO_GROUPS=true` กับ `OIDC_GROUPS_CLAIM`
 - ผู้ใช้ที่ไม่มีบัญชี AD จะเข้าไม่ได้อีกต่อไป (เดิมก็เข้าไม่ได้อยู่แล้วเพราะเปิด LDAP ไว้)
+
+### การผูกกลุ่ม AD เข้ากับบทบาทของ BookStack
+
+Auth0 **ไม่ได้ส่งรายชื่อกลุ่มมาเอง** ต้องสั่งให้ส่งด้วย Action ชื่อ **`BookStack Groups`**
+อยู่ใน Auth0 → Actions → Triggers → **Post Login** ลำดับปัจจุบันคือ
+
+```
+Start → Supabase claims → BookStack Groups → Complete
+```
+
+โค้ดของ Action (บรรทัดที่ 2 คือตัวล็อกให้ทำงานเฉพาะ BookStack แอปอื่นไม่กระทบ)
+
+```js
+exports.onExecutePostLogin = async (event, api) => {
+  if (event.client.client_id !== '<Client ID ของแอป BookStack KB>') return;
+  const ns = 'https://somjai.local/';
+  const u = event.user;
+  const groups = u.groups || (u.app_metadata && u.app_metadata.groups) || [];
+  api.idToken.setCustomClaim(ns + 'groups', groups);
+};
+```
+
+ฝั่ง BookStack ตั้งเพิ่ม 2 บรรทัด
+
+```
+- OIDC_USER_TO_GROUPS=true
+- OIDC_GROUPS_CLAIM=https://somjai.local/groups
+```
+
+**จงใจไม่เปิด remove-from-groups** — บทบาทที่ผู้ดูแลตั้งมือไว้จะไม่ถูกถอดออกตอนล็อกอิน
+
+ตารางการผูกที่ตั้งไว้แล้ว (คอลัมน์ `roles.external_auth_id` ในฐานข้อมูล BookStack)
+
+| บทบาทใน BookStack | กลุ่มใน AD |
+|---|---|
+| Admin | `KB-Admins` |
+| IT Editor | `KB-IT-Editors` |
+| ACC Editor | `KB-ACC-Editors` |
+| HR Editor | `KB-HR-Editors` |
+| WH Editor | `KB-WH-Editors` |
+| Payroll Confidential | `KB-Payroll-Confidential` |
+
+**ต่อไปเพิ่มสิทธิ์ให้พนักงานด้วยการใส่เขาเข้ากลุ่มใน AD เท่านั้น** ไม่ต้องเข้าไปตั้งใน BookStack อีก
+สิทธิ์จะถูกปรับตอนเขาล็อกอินครั้งถัดไป
+
+กลุ่ม `KB-MKT-Editors` · `KB-Sales-Editors` · `KB-ONL-Editors` สร้างไว้ใน AD แล้ว
+แต่ **ยังไม่มีบทบาทคู่กันใน BookStack** ต้องสร้างบทบาทพร้อมกำหนดสิทธิ์ก่อน แล้วจึงผูกชื่อกลุ่มลงไป
+
+### นโยบายการเข้าถึงเอกสาร
+
+**หลักที่ตกลงไว้: พนักงานทุกคนอ่านได้ทุกเล่ม ยกเว้นเอกสารที่ถูกกำหนดให้ปกปิด**
+
+- ผู้ใช้ใหม่ที่ล็อกอินครั้งแรกจะได้บทบาท **Viewer** อัตโนมัติ
+  ตั้งที่ `settings.registration-role = 3` — **ถ้าไม่ตั้ง ผู้ใช้ใหม่จะไม่ได้บทบาทใดเลยและมองไม่เห็นอะไรทั้งสิ้น**
+  (ดูโค้ด `app/Users/Models/User.php` → `attachDefaultRole()` เงื่อนไข `if ($roleId && …)`)
+- บทบาท Viewer มีสิทธิ์ `book-view-all` `chapter-view-all` `page-view-all` `bookshelf-view-all`
+- หนังสือและชั้นหนังสือของแต่ละแผนกเปิดให้ Viewer **อ่าน** ได้แล้ว ส่วนสิทธิ์แก้ไขยังเป็นของ Editor แผนกนั้น
+- รายการที่ยังปิดอยู่ตั้งใจให้ปิด
+
+| รายการ | ใครเข้าได้ |
+|---|---|
+| `HR-PAY Payroll (Confidential)` | Payroll Confidential เท่านั้น |
+| `_ทดสอบระบบ (Admin เท่านั้น)` | Admin เท่านั้น |
+
+> **สำคัญ** — ถ้าแก้ตาราง `entity_permissions` ตรง ๆ ในฐานข้อมูล **ต้องสั่งคำนวณสิทธิ์ใหม่เสมอ**
+> ไม่งั้นการแก้จะไม่มีผล เพราะ BookStack อ่านจากตารางแคช `joint_permissions`
+> ```
+> docker exec bookstack-poc sh -c "cd /app/www && php artisan bookstack:regenerate-permissions"
+> ```
+> ถ้าแก้ผ่านหน้าเว็บของ BookStack ระบบทำขั้นนี้ให้เอง
+
+สคริปต์ที่ใช้งานอยู่บนเครื่อง `192.168.0.127`
+
+| ไฟล์ | ทำอะไร |
+|---|---|
+| `/home/administrator/map-kb-roles.sh` | ผูกบทบาทกับกลุ่ม AD (แก้ SQL ได้ที่ `map-kb-roles.sql`) |
+| `/home/administrator/check-kb-roles.sh` | ตรวจว่าผู้ใช้ได้บทบาทจากกลุ่มไหนบ้าง |
+| `/home/administrator/set-default-role.sh` | ตั้งบทบาทเริ่มต้นของผู้ใช้ใหม่ + แสดงสิทธิ์อ่านของ Viewer |
+| `/home/administrator/list-restricted.sh` | ดูว่าเนื้อหาใดถูกจำกัดสิทธิ์ และพนักงานทั่วไปอ่านได้หรือไม่ |
+| `/home/administrator/open-read-access.sh` | เปิดสิทธิ์อ่านให้ Viewer (สำรองตารางเดิมและคำนวณสิทธิ์ใหม่ให้อัตโนมัติ) |
+| `/home/administrator/set-oidc-secret.sh` | ใส่ Client Secret ใหม่โดยไม่ต้องพิมพ์ลงในคำสั่ง |
+
+ไฟล์สำรองตารางสิทธิ์เดิมอยู่ที่ `/home/administrator/entity_permissions-backup-<วันเวลา>.sql`
 
 ---
 
