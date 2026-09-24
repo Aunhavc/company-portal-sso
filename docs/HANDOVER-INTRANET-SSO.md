@@ -1,6 +1,6 @@
 # เอกสารส่งมอบ — SSO ของระบบงานภายใน (Intranet SSO)
 
-สำหรับผู้ดูแลระบบคนใหม่ที่มารับช่วงต่อ · ปรับปรุง 9 กันยายน 2569
+สำหรับผู้ดูแลระบบคนใหม่ที่มารับช่วงต่อ · ปรับปรุง 24 กันยายน 2569
 
 อ่านหน้านี้หน้าเดียวจบ ถ้าต้องลงรายละเอียดค่อยตามลิงก์ท้ายหัวข้อ
 
@@ -14,8 +14,11 @@
 คือให้เว็บเซิร์ฟเวอร์บอก "คุณคือใคร" จากบัญชีที่ผู้ใช้ล็อกอินเข้าเครื่องอยู่แล้ว
 พนักงานจึงไม่ต้องกรอกรหัสซ้ำ
 
-> **เงื่อนไขเดียวที่ต้องจำ: เครื่องพนักงานต้องล็อกอินวินโดวส์ด้วยบัญชี AD**
-> เครื่องที่ล็อกอินด้วยบัญชี local จะเจอกล่องขอรหัสเสมอ — ไม่ใช่ระบบพัง
+> **เงื่อนไข 2 ข้อที่ต้องจำ**
+> 1. **เครื่องพนักงานต้องล็อกอินวินโดวส์ด้วยบัญชี AD** เครื่องที่ล็อกอินด้วยบัญชี local
+>    จะเจอกล่องขอรหัสเสมอ — ไม่ใช่ระบบพัง
+> 2. **ที่อยู่เว็บต้องอยู่ในโซน Local intranet** ชื่อที่ไม่มีจุดอย่าง `sv000itd24` เข้าเงื่อนไขอยู่แล้ว
+>    ส่วนชื่อที่มีจุดอย่าง `osticket.somjaiad01.local` ต้องประกาศเข้าโซนด้วย GPO — ดูหัวข้อ 4ข
 
 ---
 
@@ -25,6 +28,7 @@
 |---|---|---|---|
 | Company Portal | https://company-portal-sso.vercel.app | Vercel | Auth0 (AD / Google) |
 | SAP on Web | `http://sv000itd24/Sale/SAPWeb/` | `SV000ITD24` (192.168.0.24) | Windows Auth → โค้ดแอปอ่าน `AUTH_USER` เอง |
+| Sale System (ขออนุมัติส่วนลดพิเศษ) | `http://sv000itd24/Sale/sso/login.php` | `SV000ITD24` (192.168.0.24) | Windows Auth ผ่าน **virtual directory `sso`** → โค้ดแอปอ่าน `AUTH_USER` เอง |
 | osTicket | `http://osticket.somjaiad01.local/login.php` | `SV000ITDZZ` (192.168.0.250) | Windows Auth → ปลั๊กอิน HTTP Passthru |
 | Knowledge Base (BookStack) | `http://192.168.0.127:6875` | `192.168.0.127` (Linux/Docker) | **OIDC ตรงกับ Auth0** — ไม่ผ่าน Windows Auth |
 | AntBase | `https://app.antbase.co/login` | คลาวด์ (ผู้พัฒนาภายนอก) | **ยังไม่มี SSO** — ล็อกอินที่แอปเอง |
@@ -64,6 +68,95 @@
 
 ---
 
+## 3ก. Sale System (ขออนุมัติส่วนลดพิเศษ) — SSO ทำงานอย่างไร
+
+ทำเมื่อ 24 กันยายน 2569 · **คนละแอปกับ SAP on Web** แม้จะอยู่เครื่องเดียวกัน
+
+| รายการ | ค่า |
+|---|---|
+| โฟลเดอร์จริง | `C:\inetpub\wwwroot\Sale` (SAP on Web อยู่ในโฟลเดอร์ลูก `SAPWeb`) |
+| ฐานข้อมูล | `Sale_Operation` บน `192.168.0.23` — ตาราง `Users` |
+| ทางเข้าเดิม (ไม่แตะ) | `http://192.168.0.24/sale/login.php` — Anonymous · ฟอร์มของแอปเอง |
+| ทางเข้า SSO (ของใหม่) | `http://sv000itd24/Sale/sso/login.php` — Windows Auth |
+
+### ต้นเหตุที่ SSO ไม่ทำงานตอนเปลี่ยน URL การ์ด
+
+โฟลเดอร์ `C:\inetpub\wwwroot\Sale` **ไม่มีไฟล์ `web.config` เลย** Windows Auth ที่ทำไว้เมื่อ 9 ก.ย.
+อยู่ใน `web.config` ของโฟลเดอร์ลูก `SAPWeb` เท่านั้น จึงไม่ครอบถึงโฟลเดอร์แม่
+IIS จึงเสิร์ฟ `/sale/login.php` แบบ Anonymous → `AUTH_USER` ว่าง → `api_user.php` คืน `nosso`
+→ หน้า `login.php` ตกกลับไปที่ฟอร์มตามที่โค้ดเขียนไว้ (พฤติกรรมนี้ผู้พัฒนาตั้งใจออกแบบไว้แล้ว)
+
+วัดได้จาก HTTP: `/Sale/SAPWeb/` ตอบ `401 + WWW-Authenticate: Negotiate, NTLM`
+ส่วน `/sale/login.php` ตอบ `200` โดยไม่มีหัวข้อ `WWW-Authenticate` เลย
+
+### วิธีที่เลือก — virtual directory ไม่ใช่การแก้ไฟล์ของแอป
+
+สร้าง virtual directory ชื่อ `sso` ใต้แอป `Default Web Site/Sale` ชี้ไป**โฟลเดอร์เดิม**
+แล้วเปิด Windows Auth เฉพาะ path นั้น ผลคือไฟล์เดียวกันมี 2 ทางเข้า คนละวิธียืนยันตัวตน
+
+```powershell
+$a = "$env:windir\system32\inetsrv\appcmd.exe"
+& $a add vdir /app.name:"Default Web Site/Sale" /path:/sso /physicalPath:C:\inetpub\wwwroot\Sale
+& $a set config "Default Web Site/Sale/sso" /section:windowsAuthentication   /enabled:true  /commit:apphost
+& $a set config "Default Web Site/Sale/sso" /section:anonymousAuthentication /enabled:false /commit:apphost
+```
+
+**ทำไมถึงเลือกวิธีนี้ — เงื่อนไขที่ผู้ใช้ตั้งไว้คือ "แก้แค่ URL แล้วต้องไม่พังอีก"**
+
+- ไม่มีไฟล์ใดถูกเพิ่มหรือแก้ในโฟลเดอร์ของแอปเลย แม้แต่ `web.config`
+  ค่าตั้งอยู่ใน `applicationHost.config` ผู้พัฒนาส่งโค้ดชุดใหม่มาทับได้ไม่กระทบ
+- ต้องเป็น **virtual directory ใต้ `/Sale`** ไม่ใช่ application แยกที่ระดับราก
+  ลองแบบ application ชื่อ `/SaleSSO` ก่อนแล้ว **ไฟล์ `.php` ตอบ 404 ทั้งหมด**
+  เพราะตัวจัดการ `PHP_via_FastCGI` ผูกไว้กับ `Default Web Site/Sale` เท่านั้น
+  และไม่มี `web.config` ที่รากไซต์ให้สืบทอด — พอย้ายมาเป็น path ลูกก็สืบทอดได้เอง
+  ข้อดีระยะยาวคือถ้าวันหน้าอัปเกรด PHP หรือแก้ค่าของแอปแม่ ตัว `sso` จะตามไปเองทุกครั้ง
+- เครื่องที่ **ไม่ได้ join โดเมน** ยังใช้ `http://192.168.0.24/sale/login.php` เดิมได้ตามปกติ
+  จาก IIS log 3 วันมีผู้ใช้กลุ่มนี้จริง — Android, iPhone, Mac และที่เปิดผ่าน LINE
+  ถ้าเปิด Windows Auth ทั้งแอปคนกลุ่มนี้จะโดน 401 ใช้งานไม่ได้ทันที
+- ย้อนกลับด้วยคำสั่งเดียว `appcmd delete vdir "Default Web Site/Sale/sso"`
+  ไฟล์สำรอง `applicationHost.config.bak-salesso-<วันเวลา>` อยู่ในโฟลเดอร์ config ของ IIS
+
+### เงื่อนไขที่ต้องครบ ไม่งั้นยังเจอฟอร์มล็อกอิน
+
+1. **URL ต้องเป็นชื่อเครื่อง `sv000itd24` ห้ามเป็นเลข IP**
+   วินโดวส์จัด URL ที่เป็นเลข IP ไว้โซน Internet จึงไม่ส่งตัวตนอัตโนมัติ จะเด้งกล่องขอรหัสแทน
+2. **บัญชีที่ล็อกอินเข้าเครื่องวินโดวส์ ต้องเป็นคนเดียวกับที่ต้องการใช้แอป**
+   ตัวตนของแอปกลุ่ม Windows Auth มาจากเซสชันวินโดวส์ ไม่ได้มาจากบัญชีที่ล็อกอินในพอร์ทัล
+   เซสชัน Auth0 ของพอร์ทัลเป็นคุกกี้ของเว็บ `vercel.app` ส่งมาให้ IIS ไม่ได้
+3. **ชื่อผู้ใช้ต้องมีในตาราง `Users` ของฐานข้อมูล `Sale_Operation`**
+   ตรวจเมื่อ 24 ก.ย. 2569: ผู้ใช้ที่เปิดใช้งาน 251 คนจากทั้งหมด 255 คน
+   และ **251 คนใช้รูปแบบ `ชื่อ.นามสกุล` ตรงกับ AD ครบทุกคน** พนักงานจึงเข้าได้ทันทีโดยไม่ต้องแก้ทะเบียน
+   บัญชีผู้ดูแลอย่าง `itadmin` ไม่มีในทะเบียนนี้ ถ้าทดสอบด้วยบัญชีนั้นจะเจอฟอร์มล็อกอินเสมอ
+
+### บทเรียนจากการทดสอบรอบแรกที่ไม่ผ่าน
+
+ทดสอบที่เครื่อง `LT000ITD20` แล้วยังขึ้นฟอร์มให้กรอกรหัส ตรวจ IIS log พบว่าตัวตนที่วิ่งมาถึง
+เซิร์ฟเวอร์เป็น `SOMJAIAD01\itadmin` ไม่ใช่ `Jakkapong.Duk` ตามที่ตั้งใจทดสอบ
+สั่ง `whoami` ที่เครื่องนั้นได้ `somjaiad01\itadmin` ⇒ เครื่องล็อกอินวินโดวส์ค้างไว้ด้วยบัญชีผู้ดูแล
+**พอล็อกอินวินโดวส์ด้วย `jakkapong.duk` จริง ๆ ก็เข้าได้ทันทีโดยไม่ต้องกรอกอะไร (ยืนยัน 24 ก.ย. 2569)**
+
+⇒ ตรวจ `whoami` ที่เครื่องทดสอบก่อนเสมอ และดู cs-username ใน `C:\inetpub\logs\LogFiles\W3SVC1\`
+เพราะ log บันทึกชื่อผู้ใช้ที่ผ่านการยืนยันตัวตนไว้ทุกคำขอ ตอบได้ทันทีว่าติดที่ IIS หรือที่ทะเบียนของแอป
+
+### ค่าที่ตั้งในการ์ดของพอร์ทัล
+
+| ช่องในฟอร์ม | ค่า |
+|---|---|
+| URL ปลายทาง | `http://sv000itd24/sale/login.php` |
+| URL สำหรับเข้าผ่าน SSO | `http://sv000itd24/Sale/sso/login.php` |
+| URL ตรวจสอบสถานะ | เว้นว่าง (แอปยังเป็น HTTP) |
+| เปิดในแท็บใหม่ | ปิด |
+
+พอร์ทัลใช้ `app.sso_url ?? app.url` (`web/src/pages/Portal.tsx`) จึงพาไปช่อง SSO ก่อนเสมอถ้ากรอกไว้
+
+### ข้อสังเกตด้านความปลอดภัยที่พบระหว่างทาง (ยังไม่ได้แก้)
+
+รหัสผ่านบัญชี `sa` ของ SQL Server ถูกเขียนฝังไว้ตรง ๆ ในไฟล์ PHP หลายไฟล์ของแอปนี้
+เช่น `api_user.php` `api_coupon_manager.php` `api_discount.php` — ไม่เกี่ยวกับงาน SSO
+แต่ควรแจ้งผู้พัฒนาให้ย้ายไปไฟล์ตั้งค่าที่อยู่นอก document root
+
+---
+
 ## 4. osTicket — SSO ทำงานอย่างไร
 
 osTicket มีผู้ใช้เดิมจำนวนมากที่เข้าทาง `http://192.168.0.250/osticket/` อยู่แล้ว
@@ -96,6 +189,10 @@ osTicket มีผู้ใช้เดิมจำนวนมากที่�
 2. **ช่อง Username ของบัญชีผู้ใช้ต้องตรงกับชื่อผู้ใช้ AD**
    ปลั๊กอินรับ `SOMJAIAD01\Chokchai.Aun` แล้วตัดโดเมนออกเหลือ `chokchai.aun` จากนั้นค้นบัญชีด้วยชื่อนี้
    ตั้งค่าที่ staff panel > Users > เลือกคน > **Manage Account** > ช่อง Username
+
+3. **โดเมน `somjaiad01.local` ต้องอยู่ในโซน Local intranet ของเครื่องผู้ใช้**
+   เพิ่มข้อนี้ 24 ก.ย. 2569 หลังพบว่าเครื่องพนักงานบางเครื่องยังเด้งกล่องขอรหัสผ่านของเบราว์เซอร์
+   รายละเอียดอยู่ในหัวข้อ **4ข** ด้านล่าง — แก้ครั้งเดียวด้วย GPO ครอบคลุมทุกเครื่อง
 
 **การแก้ Username ไม่กระทบผู้ใช้เดิม** — ตรวจจากโค้ด `ClientAccount::lookupByUsername()` แล้ว
 ถ้าสิ่งที่กรอกมีเครื่องหมาย @ ระบบจะค้นจากอีเมล ไม่แตะช่อง username เลย
@@ -298,6 +395,87 @@ exports.onExecutePostLogin = async (event, api) => {
 
 ---
 
+## 4ข. โซน Local intranet — เงื่อนไขร่วมของทุกระบบที่ใช้ Windows Auth
+
+เพิ่ม 24 กันยายน 2569 · **ใช้กับ SAP on Web · osTicket · Sale System** (ไม่เกี่ยวกับ Knowledge Base ซึ่งใช้ OIDC)
+
+### อาการ
+
+กดการ์ดแล้วเบราว์เซอร์เด้งกล่องขอ username/password ของตัวเอง ทั้งที่บัญชีนั้นอยู่ใน AD
+และทั้งที่เครื่องล็อกอินวินโดวส์ด้วยบัญชีนั้นอยู่แล้ว
+
+### ต้นเหตุ
+
+วินโดวส์จะส่งตัวตนให้เว็บอัตโนมัติเฉพาะที่อยู่ซึ่งถูกจัดอยู่ใน **โซน Local intranet** เท่านั้น
+ถ้าตกไปอยู่โซน Internet ค่าเริ่มต้นคือ **ถามรหัสผ่านเสมอ**
+
+ค่าที่อ่านได้จริงจากเครื่อง `LT000ITD20` (ผู้ใช้ `jakkapong.duk`) ก่อนแก้
+
+| ค่าในรีจิสทรี | ที่อ่านได้ | ความหมาย |
+|---|---|---|
+| Chrome `AuthServerAllowlist` | ไม่ได้ตั้ง | Chrome ยึดตามโซนของวินโดวส์ |
+| `ZoneMap\AutoDetect` | **0** | การตรวจหาเครือข่ายภายในอัตโนมัติปิดอยู่ |
+| `ZoneMap\IntranetName` | 1 | ถือเป็นเครือข่ายภายในเฉพาะ **ชื่อที่ไม่มีจุด** |
+| `ZoneMap\Domains` (ทั้งของผู้ใช้และ GPO) | ว่าง | ไม่เคยมีใครประกาศ `somjaiad01.local` ไว้ |
+
+⇒ `sv000itd24` ไม่มีจุด จึงเป็น Local intranet เข้าได้เงียบ
+⇒ `osticket.somjaiad01.local` มีจุด จึงตกไปโซน Internet ถูกถามรหัสทุกครั้ง
+
+ยืนยันจากเครื่องผู้ใช้ด้วย `[System.Security.Policy.Zone]::CreateFromUrl(...)` ได้ผล
+`SALE = Intranet` / `OSTICKET = Internet` ตรงกับค่าในรีจิสทรีทุกประการ
+
+### วิธีแก้ — GPO ระดับโดเมน ทำครั้งเดียวครอบคลุมทุกเครื่อง
+
+GPO ชื่อ **`Intranet Zone - somjaiad01.local`** ผูกที่ `DC=SOMJAIAD01,DC=LOCAL`
+ตั้งค่ารีจิสทรีเดียว
+
+```
+HKLM\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\somjaiad01.local
+  ค่า  *  (REG_DWORD) = 1      ← 1 = โซน Local intranet
+```
+
+```powershell
+$n = 'Intranet Zone - somjaiad01.local'
+$k = 'HKLM\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\somjaiad01.local'
+New-GPO -Name $n | Out-Null
+Set-GPRegistryValue -Name $n -Key $k -ValueName '*' -Type DWord -Value 1 | Out-Null
+New-GPLink -Name $n -Target 'DC=SOMJAIAD01,DC=LOCAL' -LinkEnabled Yes
+```
+
+- มีผลในรอบรีเฟรชนโยบายถัดไป (ปกติไม่เกิน 90 นาที) หรือสั่ง `gpupdate /force`
+- **แต่ละเครื่องต้องปิด-เปิด Chrome หนึ่งครั้ง** เพราะ Chrome อ่านค่าโซนตอนเริ่มทำงานเท่านั้น
+- ถอนออกด้วย `Remove-GPLink` แล้ว `Remove-GPO -Name '<ชื่อ>'`
+- ครอบคลุมทุกชื่อที่ลงท้าย `.somjaiad01.local` รวมถึงระบบที่จะทำ SSO ในอนาคต
+
+### หลักฐานว่าแก้แล้วได้ผล
+
+IIS log ของไซต์ `osticket-sso` เครื่องเดียวกัน บัญชีเดียวกัน
+
+```
+08:36:03  /login.php   user=-                         401.2   ← ก่อนแก้ ถูกถามแล้วไม่มีคำตอบ
+08:55:52  /login.php   user=-                         401.2   ← หลังแก้ IIS ถาม
+08:55:53  /login.php   user=SOMJAIAD01\Jakkapong.Duk  302.0   ← วินโดวส์ตอบเองใน 1 วินาที
+08:55:53  /tickets.php user=SOMJAIAD01\Jakkapong.Duk  200.0
+```
+
+### วิธีวินิจฉัยเรื่องนี้ในอนาคต — อย่าเดา
+
+```powershell
+# รันที่เครื่องผู้ใช้ ขณะล็อกอินด้วยบัญชีนั้น — ต้องได้ Intranet ทุกอัน
+@{OSTICKET='http://osticket.somjaiad01.local/login.php';SALE='http://sv000itd24/Sale/sso/login.php'}.GetEnumerator() |
+  % { '{0,-9}= {1}' -f $_.Key, [System.Security.Policy.Zone]::CreateFromUrl($_.Value).SecurityZone }
+```
+
+อ่าน IIS log ของไซต์นั้นประกอบเสมอ — ช่อง `cs-username` บอกชื่อผู้ใช้ที่ผ่านการยืนยันตัวตนทุกคำขอ
+
+| รูปแบบใน log | แปลว่า |
+|---|---|
+| `401.2` แล้วมีคำขอรอบสองพร้อมชื่อผู้ใช้ ภายใน 1-2 วินาที | SSO ทำงานปกติ |
+| `401.2` แล้วเงียบ ไม่มีคำขอตามมา | เบราว์เซอร์ไม่ส่งตัวตน = เรื่องโซน |
+| มีชื่อผู้ใช้แต่แอปยังให้ล็อกอิน | ตัวตนถึงแอปแล้ว = เรื่องทะเบียนผู้ใช้ของแอป |
+
+---
+
 ## 5. Company Portal — สิ่งที่ผู้ดูแลต้องรู้
 
 - หน้าจัดการแอปคือที่เดียวที่เพิ่ม/แก้การ์ดได้ ไม่ต้องแก้โค้ดหรือ deploy ใหม่
@@ -317,13 +495,14 @@ exports.onExecutePostLogin = async (event, api) => {
 
 ```powershell
 # 1) ระบบงานภายในยังบังคับ Windows Auth อยู่ไหม (ต้องได้ 401 + Negotiate,NTLM)
-foreach ($u in 'http://sv000itd24/Sale/SAPWeb/','http://osticket.somjaiad01.local/') {
+foreach ($u in 'http://sv000itd24/Sale/SAPWeb/','http://sv000itd24/Sale/sso/login.php','http://osticket.somjaiad01.local/') {
   try { $r = Invoke-WebRequest $u -UseBasicParsing -TimeoutSec 10; "$u -> $($r.StatusCode)" }
   catch { "$u -> " + $_.Exception.Response.StatusCode.value__ + " " + $_.Exception.Response.Headers['WWW-Authenticate'] }
 }
 
-# 2) ทางเข้าเดิมของ osTicket ต้องยังเปิด Anonymous (ต้องได้ 200)
+# 2) ทางเข้าเดิมต้องยังเปิด Anonymous (ต้องได้ 200 ทั้งคู่ — ไม่งั้นเครื่องที่ไม่ได้ join โดเมนใช้ไม่ได้)
 (Invoke-WebRequest 'http://192.168.0.250/osticket/' -UseBasicParsing).StatusCode
+(Invoke-WebRequest 'http://192.168.0.24/sale/login.php' -UseBasicParsing).StatusCode
 
 # 3) พอร์ทัลยังรู้จักเครือข่ายบริษัทไหม (ต้องได้ inside:true เมื่อรันจากใน LAN)
 Invoke-RestMethod 'https://company-portal-sso.vercel.app/api/network-check?host=somjai001.dyndns.biz,somjai002.dyndns.biz'
@@ -339,6 +518,8 @@ Invoke-RestMethod 'https://company-portal-sso.vercel.app/api/network-check?host=
 |---|---|---|
 | กดการ์ดแล้วไม่เกิดอะไรขึ้น (Chrome) | ตัวบล็อกป๊อปอัป | ปิดตัวเลือก "เปิดในแท็บใหม่" ของการ์ดนั้น |
 | เข้าระบบงานแล้วยังเจอฟอร์มล็อกอิน | เครื่องล็อกอินวินโดวส์ด้วยบัญชี local | ให้ล็อกอินเครื่องด้วยบัญชี AD หรือกรอก `SOMJAIAD01\ชื่อผู้ใช้` ในกล่องที่เด้ง |
+| เบราว์เซอร์เด้งกล่องขอ username/password เอง ทั้งที่ล็อกอินเครื่องด้วยบัญชี AD แล้ว | URL เป็นชื่อที่มีจุด หรือเป็นเลข IP → ตกไปโซน Internet | ดูหัวข้อ **4ข** · ตรวจด้วย `[System.Security.Policy.Zone]::CreateFromUrl('<url>').SecurityZone` ต้องได้ `Intranet` |
+| เข้าแอปได้รอบแรก พอเปิดหน้าใหม่ถูกถามรหัสอีก | รอบแรกคือ "พิมพ์รหัสเอง" ไม่ใช่ SSO — โซนยังผิดอยู่ | เหมือนข้อบน · ดูใน IIS log ว่า `401.2` แล้วมีคำขอรอบสองพร้อมชื่อผู้ใช้ภายใน 1-2 วินาทีหรือไม่ |
 | SAPWeb เด้งกลับหน้าล็อกอินทั้งที่กรอกถูก | ผู้ใช้ยังไม่ถูก map ใน `WEB_ADUser` | เพิ่มที่หน้า `usermap.php` ของแอป |
 | "trust relationship with the primary domain failed" ตอนล็อกอิน | **บริการ Netlogon บนเครื่องนั้นหยุดทำงาน** | `Set-Service Netlogon -StartupType Automatic; Start-Service Netlogon` แล้ว `Test-ComputerSecureChannel` ต้องได้ True — **เช็กข้อนี้ก่อนคิดจะ rejoin โดเมนเสมอ** |
 | พอร์ทัลบอก "อยู่นอกเครือข่าย" ทั้งที่ต่อ VPN แล้ว | VPN เป็น split tunnel หรือออกทาง WAN ที่ยังไม่ได้ลงทะเบียน | เปิด full tunnel ที่ Zyxel และเพิ่มชื่อ DynDNS ของ WAN นั้นในตั้งค่าองค์กร · ตรวจด้วย `https://api.ipify.org` |
@@ -418,3 +599,4 @@ Invoke-RestMethod 'https://company-portal-sso.vercel.app/api/network-check?host=
 | LDAPS ของ Domain Controller | ใบรับรองหมดอายุตั้งแต่ 2566 — เป็นงานของทีม PKI |
 | VPN L2TP | ต่อไม่ติด เลิกใช้แล้ว ใช้ SSL VPN แทน |
 | คนที่ไม่มีบัญชี AD | ใช้ระบบงานภายในไม่ได้ ต้องสร้างบัญชี AD ให้ก่อนถ้าจำเป็น |
+| GPO `Intranet Zone - somjaiad01.local` | **ยังไม่ได้สร้าง** — ตอนนี้แก้ไว้ที่เครื่อง `LT000ITD20` เครื่องเดียวเพื่อพิสูจน์ว่าได้ผล ต้องสร้าง GPO เพื่อให้ครอบคลุมทุกเครื่อง (คำสั่งอยู่ในหัวข้อ 4ข) |

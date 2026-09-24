@@ -16,6 +16,7 @@
 | Company Portal (ช่องทาง AD) | ✅ ตัดทันที | — |
 | Company Portal (ช่องทาง Google) | ❌ **ไม่ตัด** | ต้องปิดในหน้าจัดการผู้ใช้ |
 | SAP on Web | ⚠️ ตัดเฉพาะทาง Windows · **ทาง PIN ยังเข้าได้** | ต้องปิดบัญชีในแอป |
+| Sale System (ขออนุมัติส่วนลดพิเศษ) | ⚠️ ตัดเฉพาะทาง SSO · **ถ้ามีรหัสผ่านในแอปยังเข้าได้** | ต้องตั้ง `IsActive = 0` ในแอป |
 | osTicket | ⚠️ ตัดเฉพาะทาง SSO · **รหัสผ่านของ osTicket ยังใช้ได้** | ต้องปิดบัญชีในแอป |
 | Knowledge Base (BookStack) | ✅ ตัดทันที — ล็อกอินได้ทางเดียวคือ Auth0/AD | — (บัญชีในแอปเหลือไว้ได้ ไม่มีรหัสผ่านของตัวเอง) |
 | AntBase / issue-hub / cashflow / asset-registry | ❌ **ไม่ตัดเลย** บัญชีแยกจาก AD | ต้องลบออกจากแต่ละแอป |
@@ -42,7 +43,7 @@ Invoke-Command -ComputerName SV000ITD01.SOMJAIAD01.LOCAL -Credential $ca -Argume
 }
 ```
 
-**ผลที่ตัดทันที:** เข้าเครื่องคอมพิวเตอร์ · ไฟล์แชร์ · SSL VPN · Company Portal ทาง AD · SAP on Web · osTicket ทาง SSO · Knowledge Base (BookStack)
+**ผลที่ตัดทันที:** เข้าเครื่องคอมพิวเตอร์ · ไฟล์แชร์ · SSL VPN · Company Portal ทาง AD · SAP on Web · osTicket ทาง SSO · Sale System ทาง SSO · Knowledge Base (BookStack)
 
 ---
 
@@ -72,6 +73,19 @@ Invoke-Command -ComputerName SV000ITD01.SOMJAIAD01.LOCAL -Credential $ca -Argume
 
 - `http://sv000itd24/Sale/SAPWeb/users_auth.php`
 - หาชื่อผู้ใช้ → **ปิดใช้งานบัญชี** และ **ล้าง PIN**
+
+---
+
+### 4ก. Sale System (ขออนุมัติส่วนลดพิเศษ)  ⏱️ 2 นาที
+
+⚠️ **ปิด AD อย่างเดียวไม่พอ** — แอปตรวจรหัสผ่าน 2 ทาง คือกับ AD **หรือ** กับรหัสผ่านของแอปเอง
+(`api_user.php` → `$adOk || $localOk` โดย `$localOk` มาจาก `password_verify` กับคอลัมน์ `PasswordHash`)
+คนที่เคยตั้งรหัสผ่านในแอปไว้จึงยังเข้าได้หลังปิดบัญชี AD แล้ว
+
+ด่านที่ตัดได้ทุกทางพร้อมกันคือ `IsActive` เพราะคิวรีล็อกอินทั้งสองแบบมี `AND u.IsActive = 1` อยู่
+
+- ให้ผู้ดูแลแอปตั้ง `IsActive = 0` ของผู้ใช้คนนั้น ในตาราง `Users` ฐานข้อมูล `Sale_Operation` (`192.168.0.23`)
+- **ห้ามลบแถวทิ้ง** เพราะ `LoginLogs` และเอกสารขออนุมัติเดิมอ้างถึง `UserID` อยู่
 
 ---
 
@@ -133,6 +147,7 @@ Invoke-Command -ComputerName SV000ITD01.SOMJAIAD01.LOCAL -Credential $ca -Script
 - [ ] ไม่มีเซสชัน SSL VPN ค้างอยู่
 - [ ] Company Portal ขึ้นสถานะปิดใช้งาน
 - [ ] SAP on Web ปิดบัญชีและล้าง PIN แล้ว
+- [ ] Sale System ตั้ง `IsActive = 0` แล้ว
 - [ ] osTicket ล็อกบัญชีแล้ว และย้ายตั๋วที่ค้างแล้ว
 - [ ] ลบออกจากแอปคลาวด์ครบทั้ง 4 ตัว
 - [ ] คืนอุปกรณ์ครบ
