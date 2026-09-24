@@ -426,8 +426,9 @@ exports.onExecutePostLogin = async (event, api) => {
 
 ### วิธีแก้ — GPO ระดับโดเมน ทำครั้งเดียวครอบคลุมทุกเครื่อง
 
-GPO ชื่อ **`Intranet Zone - somjaiad01.local`** ผูกที่ `DC=SOMJAIAD01,DC=LOCAL`
-ตั้งค่ารีจิสทรีเดียว
+**สร้างและผูกแล้ว 24 กันยายน 2569** — GPO ชื่อ **`Intranet Zone - somjaiad01.local`**
+(`Id 01763ded-ba46-49f9-b2f2-66f03c06b6c9` · `GpoStatus = AllSettingsEnabled` ·
+ผูกที่ `SOMJAIAD01.LOCAL` แบบเปิดใช้งาน) ตั้งค่ารีจิสทรีเดียว
 
 ```
 HKLM\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\somjaiad01.local
@@ -599,4 +600,4 @@ Invoke-RestMethod 'https://company-portal-sso.vercel.app/api/network-check?host=
 | LDAPS ของ Domain Controller | ใบรับรองหมดอายุตั้งแต่ 2566 — เป็นงานของทีม PKI |
 | VPN L2TP | ต่อไม่ติด เลิกใช้แล้ว ใช้ SSL VPN แทน |
 | คนที่ไม่มีบัญชี AD | ใช้ระบบงานภายในไม่ได้ ต้องสร้างบัญชี AD ให้ก่อนถ้าจำเป็น |
-| GPO `Intranet Zone - somjaiad01.local` | **ยังไม่ได้สร้าง** — ตอนนี้แก้ไว้ที่เครื่อง `LT000ITD20` เครื่องเดียวเพื่อพิสูจน์ว่าได้ผล ต้องสร้าง GPO เพื่อให้ครอบคลุมทุกเครื่อง (คำสั่งอยู่ในหัวข้อ 4ข) |
+| GPO `Intranet Zone - somjaiad01.local` | **สร้างและผูกที่ระดับโดเมนแล้ว 24 ก.ย. 2569** เครื่องที่ยังไม่รีเฟรชนโยบายจะยังเจอกล่องขอรหัสจนกว่าจะรีเฟรชและปิด-เปิด Chrome |
