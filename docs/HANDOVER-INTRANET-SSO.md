@@ -26,6 +26,7 @@
 | Company Portal | https://company-portal-sso.vercel.app | Vercel | Auth0 (AD / Google) |
 | SAP on Web | `http://sv000itd24/Sale/SAPWeb/` | `SV000ITD24` (192.168.0.24) | Windows Auth → โค้ดแอปอ่าน `AUTH_USER` เอง |
 | osTicket | `http://osticket.somjaiad01.local/login.php` | `SV000ITDZZ` (192.168.0.250) | Windows Auth → ปลั๊กอิน HTTP Passthru |
+| Knowledge Base (BookStack) | `http://192.168.0.127:6875` | `192.168.0.127` (Linux/Docker) | **OIDC ตรงกับ Auth0** — ไม่ผ่าน Windows Auth |
 | AntBase | `https://app.antbase.co/login` | คลาวด์ (ผู้พัฒนาภายนอก) | **ยังไม่มี SSO** — ล็อกอินที่แอปเอง |
 | Issue Hub | `https://somjai-issue-hub.lovable.app` | คลาวด์ (ผู้พัฒนาภายนอก) | **ยังไม่มี SSO** |
 | Cashflow | `https://somjai-cashflow-live.pattanansap.chatgpt.site` | คลาวด์ (ผู้พัฒนาภายนอก) | **ยังไม่มี SSO** |
@@ -134,6 +135,74 @@ Invoke-Command -ComputerName SV000ITDZZ.SOMJAIAD01.LOCAL -Credential $ca -Script
   Import-Module WebAdministration; Remove-Website -Name 'osticket-sso'
 }
 ```
+
+---
+
+## 4ก. Knowledge Base (BookStack) — SSO ทำงานอย่างไร
+
+ต่างจาก SAP on Web และ osTicket ตรงที่ **ไม่ได้ใช้ Windows Authentication เลย**
+BookStack คุยกับ Auth0 ด้วย OpenID Connect โดยตรง จึงใช้ได้ทุกเครื่องทุกเบราว์เซอร์
+ไม่จำเป็นต้องล็อกอินวินโดวส์ด้วยบัญชี AD
+
+| รายการ | ค่า |
+|---|---|
+| เครื่อง | `192.168.0.127` — Linux · เข้าทาง SSH ผู้ใช้ `administrator` |
+| ตัวจริง | คอนเทนเนอร์ `bookstack-poc` พอร์ต **6875** · `/opt/bookstack-poc/docker-compose.yml` |
+| ตัวสำรอง | คอนเทนเนอร์ `bookstack-ldap` พอร์ต **6876** · `/home/administrator/bookstack-ldap/docker-compose.yml` |
+| เวอร์ชัน | BookStack v26.05.4 (linuxserver) |
+| แอปใน Auth0 | `BookStack KB` — Regular Web Application |
+| Client Secret | เก็บในไฟล์ `oidc.secret` ข้าง ๆ compose (สิทธิ์ 600) ผูกด้วย `env_file` **ไม่ใส่ลงใน compose** |
+
+**เดิมเป็น `AUTH_METHOD=ldap`** — BookStack ถามรหัสผ่าน AD เอง ซึ่งเป็นแค่ "รหัสผ่านชุดเดียวกัน" ไม่ใช่ SSO
+เปลี่ยนเป็น `AUTH_METHOD=oidc` เมื่อ 24 ก.ย. 2569
+
+### กุญแจสำคัญ: `OIDC_EXTERNAL_ID_CLAIM=nickname`
+
+BookStack จับคู่ผู้ใช้เดิมด้วยคอลัมน์ `users.external_auth_id`
+สมัยใช้ LDAP ค่านี้ถูกเก็บเป็น **sAMAccountName** (เช่น `Chokchai.Aun`)
+
+Auth0 ส่ง claim `nickname` มาเป็น sAMAccountName พอดี (ตรวจแล้วด้วย `OIDC_DUMP_USER_DETAILS=true`)
+จึงชี้ให้ BookStack ใช้ claim นี้ ผลคือ **ไม่ต้องย้ายข้อมูลผู้ใช้เลย** และไม่เกิดบัญชีซ้ำ
+
+> ถ้าไม่ตั้งค่านี้ BookStack จะใช้ `sub` (เช่น `ad|somjai-ad|a6c70288-…`) ซึ่งไม่ตรงกับของเดิม
+> ผู้ใช้ทุกคนจะถูกสร้างเป็นบัญชีใหม่ **และเสียบทบาทกับสิทธิ์เอกสารทั้งหมด**
+
+### ค่าที่ตั้งไว้ใน compose
+
+```
+- AUTH_METHOD=oidc
+- AUTH_AUTO_INITIATE=true          # กดการ์ดแล้วเข้าเลย ไม่ต้องกดปุ่มล็อกอิน
+- OIDC_NAME=SomjaiBiz SSO
+- OIDC_DISPLAY_NAME_CLAIMS=name
+- OIDC_EXTERNAL_ID_CLAIM=nickname
+- OIDC_CLIENT_ID=<Client ID ของแอป BookStack KB>
+- OIDC_ISSUER=https://dev-j3byu1ifa062ozvk.us.auth0.com/
+- OIDC_ISSUER_DISCOVER=true
+```
+
+URL ที่ต้องมีในแอป Auth0 (ทั้งสองอินสแตนซ์)
+
+- Allowed Callback URLs: `http://192.168.0.127:6876/oidc/callback,http://192.168.0.127:6875/oidc/callback`
+- Allowed Logout URLs: `http://192.168.0.127:6876`, `…:6876/login`, `…:6876/login?prevent_auto_init=true` และชุดเดียวกันของ `6875`
+
+### เข้าไม่ได้ทำอย่างไร
+
+`AUTH_AUTO_INITIATE=true` ทำให้หน้า login เด้งไป Auth0 ทันที ถ้าต้องการหยุดวงจรนั้น ให้เปิด
+
+```
+http://192.168.0.127:6875/login?prevent_auto_init=true
+```
+
+ย้อนกลับเป็น LDAP ได้ด้วยไฟล์สำรองที่ชื่อ `docker-compose.yml.bak-oidc-<วันเวลา>` ข้าง ๆ ไฟล์จริง
+แล้วสั่ง `sudo docker compose up -d` ในโฟลเดอร์นั้น
+
+### ข้อจำกัดที่ต้องรู้
+
+- ตัวแปร `LDAP_*` ยังคาอยู่ใน compose แต่ **ไม่มีผลแล้ว** เพราะ `AUTH_METHOD=oidc` — จงใจเก็บไว้เผื่อย้อนกลับ
+- **การ sync กลุ่ม AD → บทบาทของ BookStack หยุดทำงาน** เพราะ Auth0 ไม่ได้ส่ง claim กลุ่มมาด้วย
+  ผู้ใช้เดิมยังคงบทบาทเดิมไว้ แต่ **ผู้ใช้ใหม่จะได้บทบาทเริ่มต้นและต้องตั้งมือ**
+  ถ้าต้องการให้อัตโนมัติ ต้องเพิ่ม claim กลุ่มใน Auth0 Action แล้วตั้ง `OIDC_USER_TO_GROUPS=true` กับ `OIDC_GROUPS_CLAIM`
+- ผู้ใช้ที่ไม่มีบัญชี AD จะเข้าไม่ได้อีกต่อไป (เดิมก็เข้าไม่ได้อยู่แล้วเพราะเปิด LDAP ไว้)
 
 ---
 

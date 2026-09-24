@@ -17,6 +17,7 @@
 | Company Portal (ช่องทาง Google) | ❌ **ไม่ตัด** | ต้องปิดในหน้าจัดการผู้ใช้ |
 | SAP on Web | ⚠️ ตัดเฉพาะทาง Windows · **ทาง PIN ยังเข้าได้** | ต้องปิดบัญชีในแอป |
 | osTicket | ⚠️ ตัดเฉพาะทาง SSO · **รหัสผ่านของ osTicket ยังใช้ได้** | ต้องปิดบัญชีในแอป |
+| Knowledge Base (BookStack) | ✅ ตัดทันที — ล็อกอินได้ทางเดียวคือ Auth0/AD | — (บัญชีในแอปเหลือไว้ได้ ไม่มีรหัสผ่านของตัวเอง) |
 | AntBase / issue-hub / cashflow / asset-registry | ❌ **ไม่ตัดเลย** บัญชีแยกจาก AD | ต้องลบออกจากแต่ละแอป |
 
 ---
@@ -41,7 +42,7 @@ Invoke-Command -ComputerName SV000ITD01.SOMJAIAD01.LOCAL -Credential $ca -Argume
 }
 ```
 
-**ผลที่ตัดทันที:** เข้าเครื่องคอมพิวเตอร์ · ไฟล์แชร์ · SSL VPN · Company Portal ทาง AD · SAP on Web และ osTicket ทาง SSO
+**ผลที่ตัดทันที:** เข้าเครื่องคอมพิวเตอร์ · ไฟล์แชร์ · SSL VPN · Company Portal ทาง AD · SAP on Web · osTicket ทาง SSO · Knowledge Base (BookStack)
 
 ---
 
