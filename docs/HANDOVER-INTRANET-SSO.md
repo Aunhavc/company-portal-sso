@@ -241,12 +241,16 @@ exports.onExecutePostLogin = async (event, api) => {
 | HR Editor | `KB-HR-Editors` |
 | WH Editor | `KB-WH-Editors` |
 | Payroll Confidential | `KB-Payroll-Confidential` |
+| MKT Editor | `KB-MKT-Editors` |
+| Sales Editor | `KB-Sales-Editors` |
+| ONL Editor | `KB-ONL-Editors` |
 
 **ต่อไปเพิ่มสิทธิ์ให้พนักงานด้วยการใส่เขาเข้ากลุ่มใน AD เท่านั้น** ไม่ต้องเข้าไปตั้งใน BookStack อีก
 สิทธิ์จะถูกปรับตอนเขาล็อกอินครั้งถัดไป
 
-กลุ่ม `KB-MKT-Editors` · `KB-Sales-Editors` · `KB-ONL-Editors` สร้างไว้ใน AD แล้ว
-แต่ **ยังไม่มีบทบาทคู่กันใน BookStack** ต้องสร้างบทบาทพร้อมกำหนดสิทธิ์ก่อน แล้วจึงผูกชื่อกลุ่มลงไป
+บทบาท MKT / Sales / ONL สร้างโดยคัดลอกชุดสิทธิ์จาก `IT Editor` มาทั้งหมด (อย่างละ 6 สิทธิ์)
+เมื่อแผนกเหล่านี้สร้างหนังสือของตัวเองแล้ว ให้ไปกำหนดสิทธิ์ระดับเนื้อหาในหน้าเว็บของ BookStack
+ให้บทบาทของแผนกนั้นแก้ไขได้ ส่วนการอ่านนั้น `Viewer` ครอบคลุมให้ทุกคนอยู่แล้ว
 
 ### นโยบายการเข้าถึงเอกสาร
 
@@ -280,6 +284,7 @@ exports.onExecutePostLogin = async (event, api) => {
 | `/home/administrator/set-default-role.sh` | ตั้งบทบาทเริ่มต้นของผู้ใช้ใหม่ + แสดงสิทธิ์อ่านของ Viewer |
 | `/home/administrator/list-restricted.sh` | ดูว่าเนื้อหาใดถูกจำกัดสิทธิ์ และพนักงานทั่วไปอ่านได้หรือไม่ |
 | `/home/administrator/open-read-access.sh` | เปิดสิทธิ์อ่านให้ Viewer (สำรองตารางเดิมและคำนวณสิทธิ์ใหม่ให้อัตโนมัติ) |
+| `/home/administrator/add-dept-roles.sh` | สร้างบทบาทของแผนกใหม่ โดยคัดลอกสิทธิ์จาก `IT Editor` |
 | `/home/administrator/set-oidc-secret.sh` | ใส่ Client Secret ใหม่โดยไม่ต้องพิมพ์ลงในคำสั่ง |
 
 ไฟล์สำรองตารางสิทธิ์เดิมอยู่ที่ `/home/administrator/entity_permissions-backup-<วันเวลา>.sql`
