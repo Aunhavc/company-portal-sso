@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>POC — Supabase + Auth0 (AD)</title>
+<style>
+  :root { color-scheme: light; font-family: 'Noto Sans Thai', 'Segoe UI', system-ui, sans-serif; }
+  body { margin: 0; background: #f1f5f9; color: #0f172a; }
+  main { max-width: 820px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #475569; font-size: 13px; margin: 0 0 20px; }
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px; margin-bottom: 16px; }
+  .card h2 { font-size: 15px; margin: 0 0 12px; }
+  label { display: block; font-size: 12px; font-weight: 600; color: #334155; margin: 10px 0 4px; }
+  input { width: 100%; box-sizing: border-box; padding: 9px 11px; font-size: 13px; font-family: ui-monospace, monospace;
+          border: 1px solid #cbd5e1; border-radius: 9px; }
+  button { font: inherit; font-size: 14px; font-weight: 600; padding: 11px 18px; border-radius: 10px;
+           border: 0; cursor: pointer; }
+  .primary { background: #2563eb; color: #fff; width: 100%; margin-top: 14px; }
+  .primary:disabled { opacity: .5; cursor: not-allowed; }
+  .ghost { background: #fff; color: #334155; border: 1px solid #cbd5e1; margin-top: 10px; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 14px; border-radius: 10px; overflow: auto;
+        font-size: 12px; line-height: 1.5; margin: 0; }
+  .ok { color: #15803d; font-weight: 700; }
+  .bad { color: #b91c1c; font-weight: 700; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .row button { flex: 1; min-width: 160px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  td { padding: 7px 4px; border-bottom: 1px solid #eef2f7; vertical-align: top; }
+  td:first-child { color: #475569; width: 40%; }
+  code { font-family: ui-monospace, monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 4px; }
+  .note { font-size: 12px; color: #475569; line-height: 1.6; }
+</style>
+</head>
+<body>
+<main>
+  <h1>POC — ผูก Supabase เข้ากับ Auth0 (บัญชี AD)</h1>
+  <p class="sub">
+    พิสูจน์ว่าแอปที่ใช้ Supabase สามารถให้พนักงานเข้าได้ด้วยบัญชี AD ผ่าน Auth0
+    โดยไม่ต้องกรอกรหัสผ่านของแอปอีก — ใช้เป็นหลักฐานไปคุยกับผู้พัฒนาภายนอก
+  </p>
+
+  <div class="card">
+    <h2>1. ค่าของโปรเจกต์ทดสอบ</h2>
+    <label for="url">Project URL ของ Supabase</label>
+    <input id="url" placeholder="https://xxxxxxxxxxxx.supabase.co" autocomplete="off" spellcheck="false">
+    <label for="key">Publishable / anon key</label>
+    <input id="key" placeholder="eyJhbGciOi..." autocomplete="off" spellcheck="false">
+    <label for="prov">ชื่อ provider ที่ตั้งไว้ใน Supabase</label>
+    <input id="prov" value="custom:somjai-ad" autocomplete="off" spellcheck="false">
+    <p class="note">
+      ค่าทั้งสามเป็นข้อมูลที่ฝังอยู่ในหน้าเว็บของแอปทุกตัวอยู่แล้ว ไม่ใช่ความลับ
+      ค่าถูกเก็บไว้ในเบราว์เซอร์เครื่องนี้เท่านั้น ไม่ได้ส่งไปที่ไหน
+    </p>
+    <button class="primary" id="save">บันทึกค่า</button>
+  </div>
+
+  <div class="card">
+    <h2>2. ทดสอบเข้าสู่ระบบ</h2>
+    <div class="row">
+      <button class="primary" id="login" style="margin-top:0">เข้าสู่ระบบด้วยบัญชีบริษัท</button>
+      <button class="ghost" id="logout" style="margin-top:0">ออกจากระบบ</button>
+    </div>
+    <p class="note" style="margin-top:12px">
+      กดแล้วจะถูกส่งไปหน้าล็อกอินของ Auth0 ให้กรอกชื่อผู้ใช้ AD <strong>เปล่า ๆ</strong>
+      เช่น <code>chokchai.aun</code> ไม่ต้องใส่ชื่อโดเมนนำหน้า
+      ถ้าเพิ่งล็อกอินพอร์ทัลมาก่อนหน้านี้ อาจเข้าได้เลยโดยไม่ถามอะไรอีก ซึ่งคือผลที่ต้องการ
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>3. ผลลัพธ์</h2>
+    <div id="status"></div>
+  </div>
+
+  <div class="card">
+    <h2>เกณฑ์ว่า POC ผ่าน</h2>
+    <ul class="note" style="margin:0; padding-left:20px">
+      <li>เข้าได้โดยไม่ต้องสร้างรหัสผ่านใหม่ในแอป</li>
+      <li>ช่อง <code>provider</code> ต้องเป็นชื่อ provider ที่ตั้งไว้ ไม่ใช่ <code>email</code></li>
+      <li>ช่อง <code>email</code> หรือ <code>preferred_username</code> ต้องเป็นของพนักงานคนนั้นจาก AD จริง</li>
+      <li>ปิดแท็บแล้วเปิดใหม่ยังอยู่ในระบบ (เซสชันถูกเก็บเหมือนแอปจริง)</li>
+    </ul>
+  </div>
+</main>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+
+const $ = (id) => document.getElementById(id)
+const CFG = 'ssopoc.cfg'
+
+function readCfg () {
+  try { return JSON.parse(localStorage.getItem(CFG) || '{}') } catch { return {} }
+}
+function show (html) { $('status').innerHTML = html }
+
+const cfg = readCfg()
+$('url').value = cfg.url || ''
+$('key').value = cfg.key || ''
+$('prov').value = cfg.prov || 'custom:somjai-ad'
+
+$('save').onclick = () => {
+  const next = { url: $('url').value.trim().replace(/\/+$/, ''), key: $('key').value.trim(), prov: $('prov').value.trim() }
+  localStorage.setItem(CFG, JSON.stringify(next))
+  location.reload()
+}
+
+let sb = null
+if (cfg.url && cfg.key) {
+  // implicit flow: โทเคนกลับมาใน URL hash ไม่ต้องเก็บ code verifier ลดชิ้นส่วนที่จะพังระหว่าง POC
+  sb = createClient(cfg.url, cfg.key, {
+    auth: { flowType: 'implicit', detectSessionInUrl: true, persistSession: true },
+  })
+}
+
+$('login').onclick = async () => {
+  if (!sb) return show('<p class="bad">ยังไม่ได้ใส่ Project URL และ key — กรอกในข้อ 1 แล้วกดบันทึกค่าก่อน</p>')
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: cfg.prov,
+    options: { redirectTo: location.href.split('#')[0] },
+  })
+  if (error) show('<p class="bad">เรียกล็อกอินไม่สำเร็จ</p><pre>' + esc(error.message) + '</pre>')
+}
+
+$('logout').onclick = async () => {
+  if (sb) await sb.auth.signOut()
+  location.hash = ''
+  location.reload()
+}
+
+function esc (s) {
+  return String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c])
+}
+
+function decodeJwt (t) {
+  try {
+    const p = t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+    return JSON.parse(decodeURIComponent(escape(atob(p))))
+  } catch { return null }
+}
+
+async function render () {
+  if (!sb) return show('<p class="note">กรอกค่าในข้อ 1 ก่อน</p>')
+
+  const err = new URLSearchParams(location.hash.slice(1)).get('error_description')
+                || new URLSearchParams(location.search).get('error_description')
+  if (err) {
+    return show('<p class="bad">Auth0 หรือ Supabase ปฏิเสธการเข้าสู่ระบบ</p><pre>' + esc(err) + '</pre>')
+  }
+
+  const { data: { session } } = await sb.auth.getSession()
+  if (!session) return show('<p class="note">ยังไม่ได้เข้าสู่ระบบ</p>')
+
+  const u = session.user
+  const claims = decodeJwt(session.access_token) || {}
+  const provider = u.app_metadata?.provider || '(ไม่ทราบ)'
+  const pass = provider !== 'email' && provider !== '(ไม่ทราบ)'
+
+  const rows = [
+    ['ผลการตรวจ', pass
+      ? '<span class="ok">ผ่าน — เข้าด้วย provider ภายนอก ไม่ใช่รหัสผ่านของแอป</span>'
+      : '<span class="bad">ยังไม่ผ่าน — provider เป็น ' + esc(provider) + '</span>'],
+    ['provider', '<code>' + esc(provider) + '</code>'],
+    ['providers ทั้งหมด', '<code>' + esc((u.app_metadata?.providers || []).join(', ') || '-') + '</code>'],
+    ['email', '<code>' + esc(u.email || '-') + '</code>'],
+    ['ชื่อที่ได้จาก AD', '<code>' + esc(u.user_metadata?.name || u.user_metadata?.preferred_username || u.user_metadata?.nickname || '-') + '</code>'],
+    ['user id ใน Supabase', '<code>' + esc(u.id) + '</code>'],
+    ['สร้างบัญชีเมื่อ', '<code>' + esc(u.created_at || '-') + '</code>'],
+    ['โทเคนหมดอายุ', '<code>' + (claims.exp ? new Date(claims.exp * 1000).toLocaleString('th-TH') : '-') + '</code>'],
+  ]
+
+  show(
+    '<table>' + rows.map(([k, v]) => '<tr><td>' + k + '</td><td>' + v + '</td></tr>').join('') + '</table>' +
+    '<p class="note" style="margin-top:14px">ข้อมูลผู้ใช้ทั้งก้อนที่ Supabase เก็บไว้</p>' +
+    '<pre>' + esc(JSON.stringify({ user_metadata: u.user_metadata, app_metadata: u.app_metadata, identities: (u.identities || []).map((i) => ({ provider: i.provider, id: i.id })) }, null, 2)) + '</pre>'
+  )
+}
+
+sb?.auth.onAuthStateChange(() => void render())
+void render()
+</script>
+</body>
+</html>
