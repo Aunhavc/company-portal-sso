@@ -42,9 +42,23 @@ export function Login() {
               >
                 {isLoading ? 'กำลังตรวจสอบ…' : 'เข้าสู่ระบบด้วยบัญชีพนักงาน (AD)'}
               </button>
-              <p className="mt-2 text-center text-xs text-slate-500">
-                ใช้ชื่อผู้ใช้และรหัสผ่านเดียวกับที่ใช้เข้าเครื่องคอมพิวเตอร์ในออฟฟิศ
-              </p>
+              {/* เตือนรูปแบบชื่อผู้ใช้ตรงนี้ เพราะช่องกรอกอยู่บนหน้า Universal Login ของ Auth0
+                  เราแก้ค่าที่ผู้ใช้พิมพ์ไม่ได้ · ใส่โดเมนนำหน้าแล้ว AD/LDAP Connector
+                  ตอบ "wrong username" ทุกครั้ง (เจอจริง 25 ต.ค. 2569) */}
+              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+                <p>ใช้ชื่อผู้ใช้และรหัสผ่านเดียวกับที่ใช้เข้าเครื่องคอมพิวเตอร์ในออฟฟิศ</p>
+                <p className="mt-1.5">
+                  ช่องชื่อผู้ใช้ให้พิมพ์<strong>ชื่อเปล่า ๆ</strong> เช่น{' '}
+                  <code className="rounded bg-white px-1 py-0.5 font-mono">chokchai.aun</code>
+                </p>
+                <p className="mt-1.5">
+                  <strong>ห้ามใส่ชื่อโดเมนนำหน้า</strong> เช่น{' '}
+                  <code className="rounded bg-white px-1 py-0.5 font-mono">
+                    {'somjaiad01\\chokchai.aun'}
+                  </code>{' '}
+                  เพราะจะขึ้นว่าชื่อผู้ใช้ไม่ถูกต้อง
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => login()}
