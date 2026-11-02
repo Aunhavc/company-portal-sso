@@ -1,0 +1,57 @@
+name: sso-probe
+
+# ตรวจว่าพนักงานยังล็อกอินด้วยบัญชี AD เข้าพอร์ทัลได้จริง
+# รันจากนอกองค์กร จึงจับได้ทั้งตอน Auth0 เพี้ยน คอนเนกเตอร์ล่ม และเน็ตบริษัทมีปัญหา
+# job ล้ม = GitHub ส่งอีเมลแจ้งเจ้าของรีโปเอง ไม่ต้องตั้งค่าแจ้งเตือนเพิ่ม
+
+on:
+  schedule:
+    # ทุก 15 นาที (เวลา UTC) — GitHub อาจเลื่อนให้ช้ากว่านี้ได้ในช่วงที่คนใช้เยอะ
+    - cron: '*/15 * * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: sso-probe
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: write   # ต้องมีเพื่อให้ตัวมันเองปิด schedule ได้เมื่อรหัสบัญชีทดสอบใช้ไม่ได้
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: ตรวจสุขภาพ SSO ปลายทางถึงปลายทาง
+        id: probe
+        env:
+          AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
+          AUTH0_AUDIENCE: ${{ secrets.AUTH0_AUDIENCE }}
+          AUTH0_AD_REALM: ${{ secrets.AUTH0_AD_REALM }}
+          AUTH0_PROBE_CLIENT_ID: ${{ secrets.AUTH0_PROBE_CLIENT_ID }}
+          AUTH0_PROBE_CLIENT_SECRET: ${{ secrets.AUTH0_PROBE_CLIENT_SECRET }}
+          AUTH0_PROBE_USERNAME: ${{ secrets.AUTH0_PROBE_USERNAME }}
+          AUTH0_PROBE_PASSWORD: ${{ secrets.AUTH0_PROBE_PASSWORD }}
+          AUTH0_PORTAL_CLIENT_ID: ${{ secrets.AUTH0_PORTAL_CLIENT_ID }}
+          AUTH0_MGMT_CLIENT_ID: ${{ secrets.AUTH0_MGMT_CLIENT_ID }}
+          AUTH0_MGMT_CLIENT_SECRET: ${{ secrets.AUTH0_MGMT_CLIENT_SECRET }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: node scripts/sso-probe.mjs
+
+      # รหัสผ่านบัญชีทดสอบใช้ไม่ได้ = ต้องหยุดรันทันที
+      # ไม่งั้นรอบถัดไปจะทำให้บัญชีถูกล็อก (นโยบายโดเมน: ผิด 3 ครั้ง ล็อก 15 นาที)
+      - name: ปิด schedule เมื่อรหัสบัญชีทดสอบใช้ไม่ได้
+        if: ${{ failure() && steps.probe.outputs.credential_problem == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "ปิด workflow เพื่อกันบัญชีทดสอบถูกล็อก"
+          gh workflow disable sso-probe.yml --repo "$GITHUB_REPOSITORY"

@@ -59,14 +59,22 @@ export function Login() {
                   เพราะจะขึ้นว่าชื่อผู้ใช้ไม่ถูกต้อง
                 </p>
               </div>
+              {/* ต้องระบุ connection ให้ชัดว่า google-oauth2 · ถ้าเรียก login() เปล่า ๆ
+                  Auth0 จะขึ้นฟอร์มอีเมล+รหัสผ่านของ connection ฐานข้อมูล
+                  (Username-Password-Authentication) ซึ่งไม่มีบัญชีพนักงานอยู่เลย
+                  พนักงานที่กรอกรหัส AD ลงไปจะได้ Wrong email or password ทุกครั้ง
+                  เกิดขึ้นจริง 2 พ.ย. 2569 — ดู log Auth0 connection=Username-Password-Authentication */}
               <button
                 type="button"
-                onClick={() => login()}
+                onClick={() => login('google-oauth2')}
                 disabled={isLoading}
                 className="mt-4 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
               >
-                เข้าสู่ระบบด้วยวิธีอื่น
+                เข้าสู่ระบบด้วยบัญชี Google
               </button>
+              <p className="mt-2 text-center text-xs text-slate-500">
+                สำหรับพนักงานที่ยังไม่มีอีเมลในระบบ AD เท่านั้น
+              </p>
             </>
           ) : (
             <button
