@@ -61,8 +61,18 @@ powershell -ExecutionPolicy Bypass -File C:\Users\aunha\projects\myrepo\SSO\scri
 1. เปิด `https://manage.auth0.com/dashboard/us/dev-j3byu1ifa062ozvk/applications`
 2. กด **Create Application** มุมขวาบน
 3. ช่อง **Name** ใส่ `SSO Probe` · เลือกประเภท **Machine to Machine Applications** → **Create**
-4. หน้าถัดไปให้เลือก API — เลือก **Somjai Portal API** (audience `https://api.company.local`)
+4. หน้าถัดไปให้เลือก API — เลือกอันที่ **Identifier** เป็น `https://api.company.local`
    แล้วกด **Authorize** โดยไม่ต้องติ๊ก scope ใดเลย
+   (ดู Identifier เป็นหลัก ไม่ใช่ชื่อที่แสดง เพราะชื่อที่แสดงอาจไม่ตรงกับที่จำกันมา)
+
+   ⚠️ **ขั้นนี้ไม่พอ — เกิดจริง 2 พ.ย. 2569** หลังสร้างแอปเสร็จ ตัวตรวจยังขึ้น
+   `invalid_request — Client "..." is not authorized to access resource server "https://api.company.local"`
+   ต้องไปเปิดสิทธิ์ให้ชัดอีกครั้งที่หน้าของแอป
+
+   4.1 กดที่ชื่อแอป `SSO Probe` → แท็บ **API Access**
+       (แดชบอร์ดบางรุ่นเรียกแท็บนี้ว่า **APIs** — เป็นอันเดียวกัน)
+   4.2 หาแถวที่ Identifier เป็น `https://api.company.local` แล้วเปิดสวิตช์ให้เป็นสีเขียว
+   4.3 ถ้าขยายออกมามีช่อง permission ไม่ต้องติ๊กอะไร เพราะตัวตรวจแค่ขอโทเคน ไม่เรียก API
 5. ไปแท็บ **Settings** ของแอปนี้ เลื่อนลงสุด กด **Advanced Settings** → แท็บ **Grant Types**
    ติ๊ก **Password** เพิ่ม (ของเดิมที่ติ๊กอยู่ไม่ต้องเอาออก) แล้วกด **Save Changes**
 6. ยังอยู่แท็บ Settings ให้คัดลอก **Client ID** และ **Client Secret** เก็บไว้ใส่ใน GitHub
@@ -122,17 +132,32 @@ powershell -ExecutionPolicy Bypass -File C:\Users\aunha\projects\myrepo\SSO\scri
 3. รอราว 1 นาที แล้วกดเข้าไปดูผล ควรเห็นสามบรรทัดนี้
 
 ```
-ผ่าน   ฟอร์มล็อกอินของ AD — 420 ms
-ผ่าน   ล็อกอินด้วยบัญชี AD — svc.ssoprobe · 1120 ms
-ผ่าน   Supabase รับโทเคน — 310 ms
+ผ่าน   ฟอร์มล็อกอินของ AD — 449 ms
+ผ่าน   ล็อกอินด้วยบัญชี AD — svc.ssoprobe · 9012 ms
+ผ่าน   Supabase รับโทเคน — 1758 ms
 
-สรุป: ผ่าน 3/3 ด่าน
+สรุป: ผ่าน 3/3 ด่าน · ใช้เวลา 11222 ms
+```
+
+**ตัวเลขข้างบนคือค่าที่วัดได้จริงตอนติดตั้งเสร็จ 2 พ.ย. 2569** ใช้เป็นฐานเทียบได้
+ด่านที่ 2 ใช้เวลาหลักวินาทีเป็นเรื่องปกติ เพราะต้องวิ่งจาก GitHub → Auth0 → อุโมงค์ websocket
+→ คอนเนกเตอร์ในองค์กร → bind กับ DC แล้วย้อนกลับทั้งเส้น
+**ถ้าตัวเลขนี้ค่อย ๆ สูงขึ้นเรื่อย ๆ** ให้สงสัยเครือข่ายหรือภาระของ DC ก่อนที่จะพังจริง
+
+ยืนยันได้อีกชั้นว่าเดินถึง AD จริงไม่ใช่แคชของ Auth0 โดยดูที่ `logs.log` ของคอนเนกเตอร์
+ต้องเห็นลำดับนี้เวลาเดียวกับที่ตัวตรวจรัน
+
+```
+user svc.ssoprobe: Starting authentication attempt.
+user svc.ssoprobe: Bind OK.
+user svc.ssoprobe: Authentication succeeded.
 ```
 
 **ถ้าด่านที่ 2 ไม่ผ่าน** ให้ดูข้อความต่อท้าย
 
 | ข้อความ | ความหมาย | แก้ที่ |
 |---|---|---|
+| `invalid_request — Client ... is not authorized to access resource server ...` | แอปยังไม่ได้รับอนุญาตให้ใช้ audience นั้น | ขั้นที่ 2 ข้อ 4.1–4.3 |
 | `unauthorized_client` | ยังไม่ได้ติ๊ก Password ใน Grant Types | ขั้นที่ 2 ข้อ 5 |
 | `unsupported_credential_type` หรือ `invalid_request` | ยังไม่ได้ตั้ง Default Directory | ขั้นที่ 2 ข้อ 8 |
 | `invalid_grant` | ชื่อผู้ใช้หรือรหัสผ่านไม่ถูก (หรือใส่ `somjaiad01\` นำหน้า) | Secrets ขั้นที่ 4 |
