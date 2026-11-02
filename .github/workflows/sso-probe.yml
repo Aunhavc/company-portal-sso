@@ -32,17 +32,23 @@ jobs:
       - name: ตรวจสุขภาพ SSO ปลายทางถึงปลายทาง
         id: probe
         env:
-          AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
-          AUTH0_AUDIENCE: ${{ secrets.AUTH0_AUDIENCE }}
-          AUTH0_AD_REALM: ${{ secrets.AUTH0_AD_REALM }}
-          AUTH0_PROBE_CLIENT_ID: ${{ secrets.AUTH0_PROBE_CLIENT_ID }}
-          AUTH0_PROBE_CLIENT_SECRET: ${{ secrets.AUTH0_PROBE_CLIENT_SECRET }}
+          # ค่าที่ไม่ใช่ความลับ เก็บเป็น Variables เพื่อให้รายงานอ่านรู้เรื่อง
+          # ถ้าเก็บเป็น Secret GitHub จะปิดบังเป็น *** ทุกที่ รวมถึงในข้อความ error
+          # ซึ่งทำให้ไล่ปัญหายากขึ้นมาก (เจอจริงตอนติดตั้ง 2 พ.ย. 2569)
+          AUTH0_DOMAIN: ${{ vars.AUTH0_DOMAIN }}
+          AUTH0_AUDIENCE: ${{ vars.AUTH0_AUDIENCE }}
+          AUTH0_AD_REALM: ${{ vars.AUTH0_AD_REALM }}
+          AUTH0_PROBE_CLIENT_ID: ${{ vars.AUTH0_PROBE_CLIENT_ID }}
+          AUTH0_PORTAL_CLIENT_ID: ${{ vars.AUTH0_PORTAL_CLIENT_ID }}
+          AUTH0_MGMT_CLIENT_ID: ${{ vars.AUTH0_MGMT_CLIENT_ID }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          # ของจริงที่เป็นความลับ — คงเป็น Secret
+          # หมายเหตุ: ชื่อผู้ใช้ก็เก็บเป็น Secret ด้วย เพราะ log ของรีโปสาธารณะเปิดให้ทุกคนอ่าน
+          # ถ้ารู้ชื่อบัญชี คนนอกยิงรหัสผิด 3 ครั้งก็ล็อกบัญชีได้ตามนโยบายโดเมน
           AUTH0_PROBE_USERNAME: ${{ secrets.AUTH0_PROBE_USERNAME }}
           AUTH0_PROBE_PASSWORD: ${{ secrets.AUTH0_PROBE_PASSWORD }}
-          AUTH0_PORTAL_CLIENT_ID: ${{ secrets.AUTH0_PORTAL_CLIENT_ID }}
-          AUTH0_MGMT_CLIENT_ID: ${{ secrets.AUTH0_MGMT_CLIENT_ID }}
+          AUTH0_PROBE_CLIENT_SECRET: ${{ secrets.AUTH0_PROBE_CLIENT_SECRET }}
           AUTH0_MGMT_CLIENT_SECRET: ${{ secrets.AUTH0_MGMT_CLIENT_SECRET }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: node scripts/sso-probe.mjs
 
