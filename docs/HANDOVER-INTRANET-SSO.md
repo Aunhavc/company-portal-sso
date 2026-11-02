@@ -27,7 +27,7 @@
 | ระบบ | URL ที่การ์ดชี้ไป | เซิร์ฟเวอร์ | วิธีทำ SSO |
 |---|---|---|---|
 | Company Portal | https://company-portal-sso.vercel.app | Vercel | Auth0 (AD / Google) |
-| SAP on Web | `http://sv000itd24/Sale/SAPWeb/` | `SV000ITD24` (192.168.0.24) | Windows Auth → โค้ดแอปอ่าน `AUTH_USER` เอง |
+| SAP on Web | `http://sv000itd24/Sale/sapweb-sso/` | `SV000ITD24` (192.168.0.24) | Windows Auth ที่**โฟลเดอร์ทางเข้าของเราเอง** → ส่งต่อเข้าแอป |
 | Sale System (ขออนุมัติส่วนลดพิเศษ) | `http://sv000itd24/Sale/sso/login.php` | `SV000ITD24` (192.168.0.24) | Windows Auth ผ่าน **virtual directory `sso`** → โค้ดแอปอ่าน `AUTH_USER` เอง |
 | osTicket | `http://osticket.somjaiad01.local/login.php` | `SV000ITDZZ` (192.168.0.250) | Windows Auth → ปลั๊กอิน HTTP Passthru |
 | Knowledge Base (BookStack) | `http://192.168.0.127:6875` | `192.168.0.127` (Linux/Docker) | **OIDC ตรงกับ Auth0** — ไม่ผ่าน Windows Auth |
@@ -55,16 +55,59 @@
 ## 3. SAP on Web — SSO ทำงานอย่างไร
 
 โค้ดของแอป (`inc/auth.php`) อ่าน `AUTH_USER` / `LOGON_USER` อยู่แล้วตั้งแต่ผู้พัฒนาส่งมอบ
-งานที่ทำคือ **เปิด Windows Authentication ที่ IIS** เท่านั้น ไม่ได้แก้โค้ดของ 3rd party เลย
+ไม่เคยแก้โค้ดของ 3rd party เลย
 
-- ไฟล์จริง: `C:\inetpub\wwwroot\Sale\SAPWeb\web.config` บน `SV000ITD24`
-- ทั้งแอปเป็น Windows Auth · **คง Anonymous ไว้ที่** `login.php` `logout.php` `pda` `api_scan.php` `api_wms.php` `api_tr.php` `api_doc.php`
-  (เครื่อง PDA ในคลังไม่ได้ join โดเมน ต้องใช้ PIN)
-- ไฟล์สำรองอยู่ข้าง ๆ ชื่อ `web.config.bak-YYYYMMDD-HHmm`
+### ⚠️ ออกแบบใหม่ 2 พ.ย. 2569 — ของเดิมถูกผู้พัฒนาปิดไปแล้ว
+
+**เดิม** (9 ก.ย. 2569) เปิด Windows Auth ทั้งแอปใน `SAPWeb\web.config` แล้วคง Anonymous
+ไว้เฉพาะหน้าที่เครื่อง PDA ใช้ · **วิธีนั้นใช้ไม่ได้อีกแล้ว**
+
+ตรวจพบ 2 พ.ย. 2569 ว่าไฟล์นั้นถูกแก้เมื่อ **22 ต.ค. 2569 เวลา 14:29** เปลี่ยนทั้งแอป
+เป็น Anonymous (มีไฟล์สำรองชื่อ `web.config.bak-20261022-anon` เวลาเดียวกัน)
+⇒ SSO ดับไป 11 วันโดยไม่มีใครรู้ · IIS log 338 คำขอ **ไม่มีคำขอใดมีชื่อผู้ใช้ติดมาเลย**
+
+**สาเหตุที่เขาต้องปิด** ไฟล์โตจาก 3.6 KB เป็น 17 KB ผ่านการแก้ 7 รอบ สะสม `<location>`
+ที่ยกเว้นเป็น Anonymous ถึง **30 รายการ** เพราะงานคลังขยายเข้ามาใช้หน้าทั่วไปด้วย
+จาก log พบเครื่องที่ไม่ใช่ Windows (มือถือ 164 · Mac 13) เรียก `quotation_new.php`
+`api_quotation.php` `ap_index.php` ด้วย ซึ่งเข้ากันไม่ได้กับการบังคับ Windows Auth ทั้งแอป
+
+### วิธีที่ใช้ตอนนี้ — โฟลเดอร์ทางเข้าที่เป็นของทีมภายใน
+
+```
+C:\inetpub\wwwroot\Sale\sapweb-sso\     ← โฟลเดอร์ของเรา ผู้พัฒนาไม่แตะ
+  web.config    เปิด Windows Auth ปิด Anonymous เฉพาะโฟลเดอร์นี้
+  index.php     require ../SAPWeb/inc/config.php แล้วเด้งไป /Sale/SAPWeb/
+  login.php     ตัวส่งต่อกันหน้า 404 กรณีบัญชีไม่มีใน WEB_ADUser
+```
+
+สร้างและตรวจด้วย `scripts/Enable-SapWebSso.ps1` (รันซ้ำได้)
+
+**ทำไมทางนี้ถึงใช้ได้ — อ่านจากโค้ดของแอปเอง ไม่ได้เดา**
+
+- `inc/auth.php` ตั้ง session cookie เป็น `'path' => '/'` ⇒ session ที่สร้างจากโฟลเดอร์เรา
+  ใช้ได้ทั้งเว็บ รวมถึง `/Sale/SAPWeb/` ที่ยังเป็น Anonymous
+- `inc/config.php:151-153` require `auth.php` แล้วเรียก `auth_require()` → `auth_bootstrap()`
+  ซึ่งอ่าน `AUTH_USER` แล้วตั้ง session ให้เอง เราจึงแค่ require ไฟล์เดียวก็พอ
+- โฟลเดอร์ของแอปยังเป็น Anonymous ตามที่ผู้พัฒนาตั้งไว้ **เครื่อง PDA และมือถือไม่กระทบเลย**
+
+**พิสูจน์แล้ว 2 พ.ย. 2569** ยิงด้วยบัญชีโดเมนไปที่ `/Sale/sapweb-sso/` ได้ `302` ไป
+`/Sale/SAPWeb/` (ถ้าบัญชีไม่ผ่านจะได้ `302` ไป `login.php` แทน) และทางเดิมกับหน้า PDA
+ยังตอบเหมือนเดิมทุกตัว
+
+### ทางที่ลองแล้วไม่ได้ อย่าเสียเวลาซ้ำ
+
+สร้าง virtual directory `/Sale/SAPWeb/sso` ชี้โฟลเดอร์เดิมแบบที่ทำกับ Sale System
+⇒ **HTTP 500 body 0 ไบต์** เพราะโฟลเดอร์ SAPWeb มี `web.config` ที่ประกาศ
+`<authentication>` อยู่แล้ว ชนกับค่าใน `applicationHost.config`
+(ตรงกับที่ผู้พัฒนาเขียนเตือนไว้ในไฟล์ของเขาเอง) ถอน vdir นั้นออกไปแล้ว
+
+### ข้อที่ยังต้องรู้
+
 - ผู้ใช้ต้องมีในตาราง `WEB_ADUser` ของแอป (จัดการที่หน้า `usermap.php`) ไม่งั้นถูกส่งไปหน้าล็อกอิน
-- **คนที่ไม่มีบัญชี AD ใช้แอปนี้ไม่ได้เลย** — ทะเบียนผู้ใช้เป็นแคชของ AD เพิ่มคนเองไม่ได้
-
-รายละเอียดเต็ม + วิธีย้อนกลับ: `C:\Users\aunha\projects\myrepo\SAPWeb\deploy\ENABLE-WINDOWS-AUTH.md`
+- **คนที่ไม่มีบัญชี AD ใช้ทางนี้ไม่ได้** ให้ใช้ทางเดิมของแอป
+- **ความเสี่ยงที่เหลือ** โฟลเดอร์ `sapweb-sso` อยู่ใต้ `Sale\` ซึ่งเป็นรากที่ผู้พัฒนา deploy
+  ถ้าวันหนึ่งเขาลบทั้งโฟลเดอร์ `Sale` ทางเข้านี้จะหายไปด้วย — รันสคริปต์ซ้ำเพื่อสร้างคืน
+- รายละเอียดของการตั้งค่ารุ่นเดิม: `C:\Users\aunha\projects\myrepo\SAPWeb\deploy\ENABLE-WINDOWS-AUTH.md`
 
 ---
 
@@ -496,7 +539,7 @@ IIS log ของไซต์ `osticket-sso` เครื่องเดีย�
 
 ```powershell
 # 1) ระบบงานภายในยังบังคับ Windows Auth อยู่ไหม (ต้องได้ 401 + Negotiate,NTLM)
-foreach ($u in 'http://sv000itd24/Sale/SAPWeb/','http://sv000itd24/Sale/sso/login.php','http://osticket.somjaiad01.local/') {
+foreach ($u in 'http://sv000itd24/Sale/sapweb-sso/','http://sv000itd24/Sale/sso/login.php','http://osticket.somjaiad01.local/') {
   try { $r = Invoke-WebRequest $u -UseBasicParsing -TimeoutSec 10; "$u -> $($r.StatusCode)" }
   catch { "$u -> " + $_.Exception.Response.StatusCode.value__ + " " + $_.Exception.Response.Headers['WWW-Authenticate'] }
 }
