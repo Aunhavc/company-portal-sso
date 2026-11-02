@@ -47,7 +47,7 @@
 | โดเมน AD | `SOMJAIAD01.LOCAL` · DC หลัก `SV000ITD01` |
 | ไฟร์วอลล์ | Zyxel USG FLEX 700 ที่ `192.168.0.254` |
 | WAN1 | `somjai001.dyndns.biz` → True (interface `ge2_ppp`) |
-| WAN2 | `somjai002.dyndns.biz` → 3BB (interface `ge1_ppp`) — เส้นที่ SSL VPN ใช้ออกเน็ต |
+| WAN2 | **Fixed IP `180.183.244.119`** → 3BB (interface `ge1_ppp`) — เส้นที่ SSL VPN ใช้ออกเน็ต · ชื่อ `somjai002.dyndns.biz` ตายแล้ว ไม่ได้ใช้ |
 | VPN ที่ใช้จริง | SSL VPN (Zyxel SecuExtender) แบบ full tunnel · **ไม่ใช้ L2TP** |
 
 ---
@@ -526,7 +526,9 @@ IIS log ของไซต์ `osticket-sso` เครื่องเดีย�
 - การ์ดของระบบภายในจะผ่าน **หน้ากลาง `/launch/<slug>`** ซึ่งตรวจก่อนว่าเครื่องอยู่ในเครือข่ายบริษัทหรือไม่
   ถ้าไม่อยู่ จะขึ้นหน้าแจ้งให้ต่อ VPN — ผู้ใช้จะไม่มีทางเจอหน้า error ของเบราว์เซอร์
 - ค่าที่ใช้ตรวจอยู่ในการ์ด **ตั้งค่าองค์กร** ช่อง "ชื่อ DynDNS / IP สาธารณะของบริษัท"
-  ปัจจุบันคือ `somjai001.dyndns.biz somjai002.dyndns.biz` — **ต้องมีครบทั้งสองชื่อ**
+  ปัจจุบันคือ `somjai001.dyndns.biz 180.183.244.119` — **ต้องมีครบทั้งสองค่า**
+  WAN1 ใช้ชื่อเพราะ IP เปลี่ยนจริง (7 ก.ย. 119.76.173.14 → 2 พ.ย. 58.8.255.79)
+  WAN2 ใส่เลขตรง ๆ เพราะเป็น Fixed IP · ไฟร์วอลล์กระจายโหลด เครื่องเดียวกันออกสลับเส้นได้ในวันเดียว
 - **อย่าติ๊ก "เปิดในแท็บใหม่"** สำหรับการ์ดระบบภายใน เพราะ Chrome จะบล็อกป๊อปอัป
   ผู้ใช้จะกดแล้วเงียบสนิทโดยไม่มีข้อความอะไรเลย
 - **อย่ากรอก "URL ตรวจสอบสถานะ"** ถ้าระบบงานยังเป็น HTTP การ์ดจะขึ้นป้ายเหลืองตลอด
@@ -549,7 +551,7 @@ foreach ($u in 'http://sv000itd24/Sale/sapweb-sso/','http://sv000itd24/Sale/sso/
 (Invoke-WebRequest 'http://192.168.0.24/sale/login.php' -UseBasicParsing).StatusCode
 
 # 3) พอร์ทัลยังรู้จักเครือข่ายบริษัทไหม (ต้องได้ inside:true เมื่อรันจากใน LAN)
-Invoke-RestMethod 'https://company-portal-sso.vercel.app/api/network-check?host=somjai001.dyndns.biz,somjai002.dyndns.biz'
+Invoke-RestMethod 'https://company-portal-sso.vercel.app/api/network-check?host=somjai001.dyndns.biz,180.183.244.119'
 ```
 
 ที่ Zyxel: `MONITOR → Network Status → DDNS Status` ทั้ง `DDNS_True` และ `DDNS_3BB` ต้องเป็น **Success**
