@@ -30,19 +30,14 @@
 
 ห้ามใช้บัญชีพนักงานจริง เพราะรหัสผ่านจะต้องเก็บไว้ในระบบและห้ามหมดอายุ
 
+มีสคริปต์ทำให้แล้ว รันบรรทัดเดียวจากเครื่องผู้ดูแล (PowerShell · ไม่ต้อง Run as administrator)
+
 ```powershell
-$ca = Get-Credential SOMJAIAD01\administrator
-Invoke-Command -ComputerName SV000ITD01.SOMJAIAD01.LOCAL -Credential $ca -ScriptBlock {
-  Import-Module ActiveDirectory
-  $pw = Read-Host -AsSecureString 'รหัสผ่านของ svc.ssoprobe'
-  New-ADUser -Name 'SSO Probe' -SamAccountName 'svc.ssoprobe' `
-    -UserPrincipalName 'svc.ssoprobe@somjaiad01.local' `
-    -AccountPassword $pw -Enabled $true -PasswordNeverExpires $true `
-    -Description 'บัญชีสำหรับตัวตรวจสุขภาพ SSO — ห้ามใช้ล็อกอินจริง' `
-    -EmailAddress 'svc.ssoprobe@somjaibiz.co.th'
-  Add-ADGroupMember -Identity 'SSO-Portal-Users' -Members 'svc.ssoprobe'
-}
+powershell -ExecutionPolicy Bypass -File C:\Users\aunha\projects\myrepo\SSO\scripts\New-SsoProbeAccount.ps1
 ```
+
+สคริปต์จะถามรหัสผ่านสองครั้งเพื่อกันพิมพ์ผิด (ไม่แสดงค่าบนจอและไม่เขียนลงไฟล์ใด)
+แล้วสร้างบัญชีให้พร้อมค่าที่ถูกต้องทั้งหมด · **รันซ้ำได้** ถ้าบัญชีมีอยู่แล้วจะตั้งค่าซ้ำให้ตรง
 
 **เหตุผลของแต่ละค่า**
 
