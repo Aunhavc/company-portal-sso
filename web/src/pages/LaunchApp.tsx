@@ -128,6 +128,11 @@ export function LaunchApp() {
             isAdmin={isAdmin}
             onRetry={() => void check(app)}
             result={result}
+            /* การตรวจเทียบ IP สาธารณะเชื่อถือ 100% ไม่ได้ — ถ้าชื่อ DynDNS ตายหรือ
+               สำนักงานออกเน็ตทางเส้นที่ยังไม่ได้ลงทะเบียน คนที่นั่งอยู่ในออฟฟิศจะถูกตัดสินว่า
+               อยู่นอกเครือข่ายทั้งที่เข้าถึงแอปได้ (เจอจริง 2 พ.ย. 2569: somjai002.dyndns.biz
+               แก้ชื่อไม่ได้แล้ว) จึงต้องไม่กั้นใครสนิท ให้คำเตือนเป็นคำแนะนำ ไม่ใช่กำแพง */
+            proceedForAll
           />
         ) : null}
 
@@ -146,6 +151,7 @@ export function LaunchApp() {
             isAdmin={isAdmin}
             onRetry={() => void check(app)}
             result={result}
+            proceedForAll
           />
         ) : null}
 
