@@ -99,27 +99,48 @@ powershell -ExecutionPolicy Bypass -File C:\Users\aunha\projects\myrepo\SSO\scri
 
 ---
 
-## ขั้นที่ 4 — ใส่ค่าใน GitHub Secrets
+## ขั้นที่ 4 — ใส่ค่าใน GitHub
 
-เปิด `https://github.com/Aunhavc/company-portal-sso/settings/secrets/actions`
-กด **New repository secret** แล้วใส่ทีละตัวตามตารางนี้
+**แยกเป็น 2 ที่ โดยเจตนา** เพราะ GitHub ปิดบังค่าที่เป็น Secret เป็น `***` ทุกที่
+รวมถึงในข้อความ error ทำให้ไล่ปัญหายากขึ้นมาก (เจอจริงตอนติดตั้ง)
+ค่าที่ไม่ใช่ความลับจึงเก็บเป็น **Variables** ให้รายงานอ่านรู้เรื่อง
 
-| ชื่อ secret | ค่า |
+### 4ก. Variables — ค่าที่ไม่ใช่ความลับ
+
+เปิด `https://github.com/Aunhavc/company-portal-sso/settings/variables/actions`
+กด **New repository variable** แล้วใส่ทีละตัว
+
+| ชื่อ | ค่า |
 |---|---|
 | `AUTH0_DOMAIN` | `dev-j3byu1ifa062ozvk.us.auth0.com` |
 | `AUTH0_AUDIENCE` | `https://api.company.local` |
 | `AUTH0_AD_REALM` | `somjai-ad` |
 | `AUTH0_PORTAL_CLIENT_ID` | `ZcdkFTwgGdUlqz8ioSO34SDuziudy9PW` |
 | `AUTH0_PROBE_CLIENT_ID` | Client ID ของแอป `SSO Probe` |
-| `AUTH0_PROBE_CLIENT_SECRET` | Client Secret ของแอป `SSO Probe` |
+| `AUTH0_MGMT_CLIENT_ID` | Client ID ของแอป `SSO Log Reader` |
+| `SUPABASE_URL` | `https://qgejyuifktbijcyjwcmx.supabase.co` |
+
+ทั้งหมดนี้ฝังอยู่ในหน้าเว็บของพอร์ทัลให้ทุกคนอ่านได้อยู่แล้ว ไม่มีอะไรต้องปิด
+ส่วน client id ของแอป M2M ถ้าไม่มี secret คู่กันก็ใช้ทำอะไรไม่ได้
+
+### 4ข. Secrets — ของจริงที่เป็นความลับ
+
+เปิด `https://github.com/Aunhavc/company-portal-sso/settings/secrets/actions`
+กด **New repository secret**
+
+| ชื่อ | ค่า |
+|---|---|
 | `AUTH0_PROBE_USERNAME` | `svc.ssoprobe` — **ชื่อเปล่า ๆ ห้ามใส่ `somjaiad01\` นำหน้า** |
 | `AUTH0_PROBE_PASSWORD` | รหัสผ่านของ `svc.ssoprobe` |
-| `AUTH0_MGMT_CLIENT_ID` | Client ID ของแอป `SSO Log Reader` |
+| `AUTH0_PROBE_CLIENT_SECRET` | Client Secret ของแอป `SSO Probe` |
 | `AUTH0_MGMT_CLIENT_SECRET` | Client Secret ของแอป `SSO Log Reader` |
-| `SUPABASE_URL` | `https://qgejyuifktbijcyjwcmx.supabase.co` |
-| `SUPABASE_ANON_KEY` | anon key ของโปรเจกต์พอร์ทัล |
+| `SUPABASE_ANON_KEY` | publishable key ของโปรเจกต์พอร์ทัล |
 
-ค่าเหล่านี้มองไม่เห็นในหน้าเว็บและไม่ปรากฏในบันทึกของ job (GitHub ปิดบังให้อัตโนมัติ)
+> **ทำไมชื่อผู้ใช้ก็ต้องเป็น Secret** ทั้งที่ชื่อบัญชีไม่ใช่ความลับ
+> เพราะบันทึกของ GitHub Actions บนรีโปสาธารณะเปิดให้ใครก็อ่านได้
+> และนโยบายโดเมนล็อกบัญชีหลังกรอกรหัสผิด 3 ครั้ง
+> ถ้าคนนอกรู้ชื่อ ก็ยิงรหัสผิดสามครั้งให้บัญชีถูกล็อกได้
+> ตัวตรวจก็จะส่งอีเมลแจ้งผิด ๆ ทุก 15 นาที — ปิดชื่อไว้ตัดปัญหานี้ไปเลย
 
 ---
 
@@ -132,17 +153,21 @@ powershell -ExecutionPolicy Bypass -File C:\Users\aunha\projects\myrepo\SSO\scri
 3. รอราว 1 นาที แล้วกดเข้าไปดูผล ควรเห็นสามบรรทัดนี้
 
 ```
-ผ่าน   ฟอร์มล็อกอินของ AD — 449 ms
-ผ่าน   ล็อกอินด้วยบัญชี AD — svc.ssoprobe · 9012 ms
-ผ่าน   Supabase รับโทเคน — 1758 ms
+ผ่าน   ฟอร์มล็อกอินของ AD — 461 ms
+ผ่าน   ล็อกอินด้วยบัญชี AD — svc.ssoprobe · 857 ms
+ผ่าน   Supabase รับโทเคน — 910 ms
 
-สรุป: ผ่าน 3/3 ด่าน · ใช้เวลา 11222 ms
+สรุป: ผ่าน 3/3 ด่าน · ใช้เวลา 2233 ms
 ```
 
-**ตัวเลขข้างบนคือค่าที่วัดได้จริงตอนติดตั้งเสร็จ 2 พ.ย. 2569** ใช้เป็นฐานเทียบได้
-ด่านที่ 2 ใช้เวลาหลักวินาทีเป็นเรื่องปกติ เพราะต้องวิ่งจาก GitHub → Auth0 → อุโมงค์ websocket
+**ค่าฐานที่วัดได้จริง 2 พ.ย. 2569** — รวมทั้งสามด่านราว **2.2 วินาที**
+ด่านล็อกอินปกติอยู่หลักร้อยมิลลิวินาที เพราะวิ่งจาก GitHub → Auth0 → อุโมงค์ websocket
 → คอนเนกเตอร์ในองค์กร → bind กับ DC แล้วย้อนกลับทั้งเส้น
-**ถ้าตัวเลขนี้ค่อย ๆ สูงขึ้นเรื่อย ๆ** ให้สงสัยเครือข่ายหรือภาระของ DC ก่อนที่จะพังจริง
+
+> **รอบแรกหลังอุโมงค์ว่างมานานจะช้าผิดปกติ** ครั้งแรกที่วัดได้คือ 9012 ms
+> แล้วรอบถัดมาเหลือ 857 ms ทั้งที่ไม่ได้แก้อะไรเลย เป็นการอุ่นเครื่องของการเชื่อมต่อ
+> **เห็นเลขหลักหลายวินาทีครั้งเดียวไม่ต้องตื่นตระหนก** ให้ดูแนวโน้มหลายรอบแทน
+> ถ้าค่าสูงค้างอยู่ทุกรอบ ให้สงสัยเครือข่ายหรือภาระของ DC ก่อนที่จะพังจริง
 
 ยืนยันได้อีกชั้นว่าเดินถึง AD จริงไม่ใช่แคชของ Auth0 โดยดูที่ `logs.log` ของคอนเนกเตอร์
 ต้องเห็นลำดับนี้เวลาเดียวกับที่ตัวตรวจรัน
